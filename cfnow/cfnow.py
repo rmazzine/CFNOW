@@ -9,7 +9,7 @@ import pandas as pd
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
-def check_factual(factual):
+def _check_factual(factual):
     # Factual must be a pandas Series
     try:
         assert type(factual) == pd.Series
@@ -17,7 +17,7 @@ def check_factual(factual):
         raise TypeError(f'Factual must be a Pandas Series. However it is {type(factual)}.')
 
 
-def check_vars(factual, feat_types):
+def _check_vars(factual, feat_types):
     # The number of feat_types must be the same as the number of factual features
     try:
         missing_var = list(set(factual.index)-set(feat_types.keys()))
@@ -41,7 +41,7 @@ def check_prob_func(factual, model_predict_proba):
         raise Exception('Error when using the model_predict_proba function.')
 
 
-def standardize_predictor(factual, model_predict_proba):
+def _standardize_predictor(factual, model_predict_proba):
     prob_fact = model_predict_proba(factual.to_frame().T)
 
     # Convert the output of prediction function to something that can be treated
@@ -91,7 +91,7 @@ def standardize_predictor(factual, model_predict_proba):
     return mp1
 
 
-def get_ohe_params(factual, has_ohe):
+def _get_ohe_params(factual, has_ohe):
     ohe_list = []
     ohe_indexes = []
     # if has_ohe:
@@ -108,7 +108,7 @@ def get_ohe_params(factual, has_ohe):
     return ohe_list, ohe_indexes
 
 
-def adjust_model_class(factual, mp1):
+def _adjust_model_class(factual, mp1):
     # Define the cf try
     cf_try = copy.copy(factual).to_numpy()
 
@@ -120,7 +120,7 @@ def adjust_model_class(factual, mp1):
     return mp1c
 
 
-def super_sedc(factual, mp1c, feat_types, it_max, ohe_list, ohe_indexes, increase_threshold, tabu_list, verbose):
+def _super_sedc(factual, mp1c, feat_types, it_max, ohe_list, ohe_indexes, increase_threshold, tabu_list, verbose):
     
     # If tabu_list is None, then, disconsider it assigning an empty list
     if tabu_list is None:
@@ -208,17 +208,17 @@ def super_sedc(factual, mp1c, feat_types, it_max, ohe_list, ohe_indexes, increas
     return cf_try
 
 
-def obj_function(factual_np, c_cf):
+def _obj_function(factual_np, c_cf):
     return sum(np.abs(factual_np - c_cf))
 
 
-def get_ohe_list(f_idx, ohe_list):
+def _get_ohe_list(f_idx, ohe_list):
     for ol in ohe_list:
         if f_idx in ol:
             return ol
 
 
-def fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types, ft_change_factor,
+def _fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types, ft_change_factor,
                  it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds, verbose):
     feat_idx_to_name = pd.Series(factual.index).to_dict()
     feat_idx_to_type = lambda x: feat_types[feat_idx_to_name[x]]
@@ -229,7 +229,7 @@ def fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshol
 
     # Create array to store the best solution
     # It has: the VALID CF, the CF score and the objective function  (L1 distance)
-    best_solution = [copy.copy(cf_out), mp1c([cf_out])[0], obj_function(factual_np, cf_out)]
+    best_solution = [copy.copy(cf_out), mp1c([cf_out])[0], _obj_function(factual_np, cf_out)]
 
     # Create variable to store current solution - FIRST TIME
     c_cf = copy.copy(cf_out)
@@ -244,7 +244,7 @@ def fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshol
             break
 
         if verbose:
-            print(f'Fine tuning: Prob={c_cf_c} / Distance={obj_function(factual_np, c_cf)}')
+            print(f'Fine tuning: Prob={c_cf_c} / Distance={_obj_function(factual_np, c_cf)}')
 
         # Generate change vector with all changes that would make the cf return
         # to factual for each feature
@@ -278,7 +278,7 @@ def fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshol
             if feat_idx_to_type(di) == 'num':
                 change_vector[di] = factual_np[di] - c_cf[di]
             elif di in ohe_indexes:
-                change_ohe_idx = get_ohe_list(di, ohe_list)
+                change_ohe_idx = _get_ohe_list(di, ohe_list)
                 change_vector[change_ohe_idx] = factual_np[change_ohe_idx] - c_cf[change_ohe_idx]
             else:
                 # It's binary
@@ -321,7 +321,7 @@ def fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshol
         # Check if still a cf
         if c_cf_c > 0.5:
             # Calculate objective function
-            c_cf_o = obj_function(factual_np, c_cf)
+            c_cf_o = _obj_function(factual_np, c_cf)
             # Check if it's a better solution
             if c_cf_o < best_solution[2]:
                 best_solution = [copy.copy(cf_out), c_cf_c, c_cf_o]
@@ -330,12 +330,12 @@ def fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshol
             # If numerical or binary, just add the single index
             # However, if it's OHE add all related indexes
             if change_original_idx in ohe_indexes:
-                tabu_list.append(get_ohe_list(change_original_idx, ohe_list))
+                tabu_list.append(_get_ohe_list(change_original_idx, ohe_list))
             else:
                 tabu_list.append([change_original_idx])
 
             # Return to CF, however, considering the Tabu list
-            c_cf = super_sedc(factual=pd.Series(c_cf),
+            c_cf = _super_sedc(factual=pd.Series(c_cf),
                               mp1c=mp1c,
                               feat_types=feat_types,
                               it_max=it_max,
@@ -348,28 +348,28 @@ def fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshol
     return best_solution
 
 
-def cfnow(factual, feat_types, model_predict_proba,
-          increase_threshold=0.001, it_max=100, limit_seconds=60, ft_change_factor=0.1, ft_it_max=50, size_tabu=5,
-          ft_threshold_distance=0.01, has_ohe=False, verbose=False):
+def findcf(factual, feat_types, model_predict_proba,
+           increase_threshold=0.001, it_max=100, limit_seconds=60, ft_change_factor=0.1, ft_it_max=50, size_tabu=5,
+           ft_threshold_distance=0.01, has_ohe=False, verbose=False):
     # Timer now
     time_start = datetime.now()
 
     # Make checks
-    check_factual(factual)
-    check_vars(factual, feat_types)
+    _check_factual(factual)
+    _check_vars(factual, feat_types)
     check_prob_func(factual, model_predict_proba)
 
     # Generate standardized predictor
-    mp1 = standardize_predictor(factual, model_predict_proba)
+    mp1 = _standardize_predictor(factual, model_predict_proba)
 
     # Correct class
-    mp1c = adjust_model_class(factual, mp1)
+    mp1c = _adjust_model_class(factual, mp1)
 
     # Generate OHE parameters if it has OHE variables
-    ohe_list, ohe_indexes = get_ohe_params(factual, has_ohe)
+    ohe_list, ohe_indexes = _get_ohe_params(factual, has_ohe)
 
     # Generate CF using SEDC
-    cf_out = super_sedc(factual=factual,
+    cf_out = _super_sedc(factual=factual,
                         mp1c=mp1c,
                         feat_types=feat_types,
                         it_max=it_max,
@@ -380,7 +380,7 @@ def cfnow(factual, feat_types, model_predict_proba,
                         verbose=verbose)
 
     # Fine tune the counterfactual
-    cf_out_ft = fine_tunning(factual=factual,
+    cf_out_ft = _fine_tunning(factual=factual,
                              cf_out=cf_out,
                              mp1c=mp1c,
                              ohe_list=ohe_list,
@@ -397,28 +397,3 @@ def cfnow(factual, feat_types, model_predict_proba,
                              verbose=verbose)
 
     return cf_out_ft
-
-
-import pickle
-
-df_adult = pd.read_pickle('../adult_train.pkl')
-df_adult_test = pd.read_pickle('../adult_test.pkl')
-df_adult_num_cols = pd.read_pickle('../adult_num_cols.pkl').to_list()
-
-# and later you can load it
-with open('../model_test.pkl', 'rb') as f:
-    model_adult = pickle.load(f)
-
-factual = df_adult_test.drop(columns=['label']).iloc[0]
-# consider as default all columns as numerical
-feat_types = {c: 'num' if c in df_adult_num_cols else 'cat' for c in list(df_adult.columns) if c != 'label'}
-
-feat_idx_to_name = pd.Series(factual.index).to_dict()
-
-feat_idx_to_type = lambda x: feat_types[feat_idx_to_name[x]]
-
-model_predict_proba = model_adult.predict_proba
-it_max = 100
-has_ohe = True
-
-cf_out = cfnow(factual, feat_types, model_predict_proba, it_max=100, limit_seconds=60, has_ohe=True, verbose=True)
