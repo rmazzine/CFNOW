@@ -342,6 +342,9 @@ def _super_sedc(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, o
         changes = np.concatenate(
             [c for c in [changes_cat_bin, changes_cat_ohe, changes_num_up, changes_num_down] if len(c) > 0])
 
+        # Drop all zero rows
+        changes = np.delete(changes, np.where(np.abs(changes).sum(axis=1)==0)[0], axis=0)
+
         # if the Tabu list is larger than zero
         if len(tabu_list) > 0:
             # Remove all rows which the sum of absolute change vector
@@ -350,7 +353,11 @@ def _super_sedc(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, o
             # Flatten indexes
             forbidden_indexes = [item for sublist in tabu_list for item in sublist]
             idx_to_remove = np.where(np.abs(changes[:, forbidden_indexes]) != 0)[0]
-            changes = np.delete(changes, idx_to_remove, axis=0)
+            changes = np.delete(changes, list(set(idx_to_remove)), axis=0)
+
+        # If no changes, return cf
+        if len(changes) == 0:
+            return cf_try
 
         # Create array with CF candidates
         cf_candidates = cf_try + changes
