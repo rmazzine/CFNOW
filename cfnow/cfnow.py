@@ -20,15 +20,16 @@ def _check_factual(factual):
 def _check_vars(factual, feat_types):
     # The number of feat_types must be the same as the number of factual features
     try:
-        missing_var = list(set(factual.index)-set(feat_types.keys()))
-        extra_var = list(set(feat_types.keys())-set(factual.index))
+        missing_var = list(set(factual.index) - set(feat_types.keys()))
+        extra_var = list(set(feat_types.keys()) - set(factual.index))
         assert len(missing_var) == 0 and len(extra_var) == 0
     except AssertionError:
         if len(missing_var) > 0 and len(extra_var) > 0:
             raise AssertionError(f"\nThe features:\n {','.join(missing_var)}\nmust have their type defined in feat_types.\
                                  \n\nAnd the features:\n {','.join(extra_var)}\nare not defined in the factual point")
         elif len(missing_var) > 0:
-            raise AssertionError(f"The features:\n {','.join(missing_var)}\nmust have their type defined in feat_types.")
+            raise AssertionError(
+                f"The features:\n {','.join(missing_var)}\nmust have their type defined in feat_types.")
         elif len(extra_var) > 0:
             raise AssertionError(f"The features:\n {','.join(extra_var)}\nare not defined in the factual point.")
 
@@ -114,20 +115,30 @@ def _adjust_model_class(factual, mp1):
 
     mp1c = mp1
     # Adjust class, it must be binary and lower than 0
-    if mp1([cf_try])[0] > 0.5:
+    if mp1(np.array([cf_try]))[0] > 0.5:
         mp1c = lambda x: 1 - mp1(x)
 
     return mp1c
 
 
-def _super_sedc(factual, mp1c, feat_types, it_max, ohe_list, ohe_indexes, increase_threshold, tabu_list, verbose):
-    
+def _super_sedc(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes, increase_threshold,
+                tabu_list, size_tabu, hard_try, verbose):
+    recent_improvements = deque(maxlen=(5))
+
+    # Start with a greedy optimization, however, if the changes selected are the same and the score increase
+    # is not good, start Tabu list
+    activate_tabu = False
+
+    # Additional momentum to avoid being stuck in a minimum, starts with zero, however, if Tabu list is activated
+    # and changes are not big, activate it
+    add_momentum = 0
+
     # If tabu_list is None, then, disconsider it assigning an empty list
     if tabu_list is None:
-        tabu_list = []
-        
+        tabu_list = deque(maxlen=(size_tabu))
+
     # For Categorical (binary) there's only one change, flipping 0->1 or 1->0
-    # For Categorical (OHE) there's a complex change, which considers 
+    # For Categorical (OHE) there's a complex change, which considers
     # flipping two binaries
     # For Numerical we can increase 50% of input or decrease 50%
 
@@ -135,49 +146,59 @@ def _super_sedc(factual, mp1c, feat_types, it_max, ohe_list, ohe_indexes, increa
     cf_try = copy.copy(factual).to_numpy()
 
     # Identify the indexes of categorical and numerical variables
-    indexes_cat = np.where(np.isin(factual.index, [c for c, t in feat_types.items() if t=='cat']))[0]
-    indexes_num = sorted(list(set([*range(len(factual))])-set(indexes_cat.tolist())))
+    indexes_cat = np.where(np.isin(factual.index, [c for c, t in feat_types.items() if t == 'cat']))[0]
+    indexes_num = sorted(list(set([*range(len(factual))]) - set(indexes_cat.tolist())))
 
     # Create identity matrixes for each type of variable
-    arr_changes_cat_bin = np.eye(len(factual))[list(set(indexes_cat)-set(ohe_indexes))]
+    arr_changes_cat_bin = np.eye(len(factual))[list(set(indexes_cat) - set(ohe_indexes))]
     arr_changes_cat_ohe = np.eye(len(factual))
     arr_changes_num = np.eye(len(factual))[indexes_num]
 
     iterations = 1
     cf_try_prob = mp1c(factual.to_frame().T)[0]
     # Implement a threshold for score increase, this avoids having useless moves
-    score_increase = increase_threshold+1
+    score_increase = increase_threshold + 1
     # Repeat until max iterations
     while cf_try_prob <= 0.5 and iterations < it_max and score_increase >= increase_threshold:
         # Changes
         # For categorical binary
-        changes_cat_bin = arr_changes_cat_bin*(1-2*cf_try)
+        changes_cat_bin = arr_changes_cat_bin * (1 - 2 * cf_try)
         # For categorical ohe
         changes_cat_ohe_list = []
         for ohe_group in ohe_list:
-            changes_cat_ohe_list.append(arr_changes_cat_ohe[ohe_group] - (arr_changes_cat_ohe[ohe_group]*cf_try).sum(axis=0))
+            changes_cat_ohe_list.append(
+                arr_changes_cat_ohe[ohe_group] - (arr_changes_cat_ohe[ohe_group] * cf_try).sum(axis=0))
         if len(changes_cat_ohe_list) > 0:
             changes_cat_ohe = np.concatenate(changes_cat_ohe_list)
         else:
             changes_cat_ohe = []
-        # For numerical up - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
-        changes_num_up = arr_changes_num*0.5*cf_try
-        # For numerical down - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
-        changes_num_down = -copy.copy(changes_num_up)
+        if not hard_try:
+            # For numerical up - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
+            changes_num_up = arr_changes_num * ft_change_factor * cf_try + arr_changes_num * add_momentum
+            # For numerical down - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
+            changes_num_down = -copy.copy(changes_num_up)
+        else:
+            # The hard try is necessary for cases which the numerical results are very low (close to 0)
+            # and then, they need an extra momentum to find CF explanations
+            # For numerical up - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
+            changes_num_up = arr_changes_num * 1 * copy.copy(factual).to_numpy() + arr_changes_num
+            # For numerical down - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
+            changes_num_down = -copy.copy(changes_num_up)
 
         # Create changes array
-        changes = np.concatenate([c for c in [changes_cat_bin, changes_cat_ohe, changes_num_up, changes_num_down] if len(c) > 0])
-        
+        changes = np.concatenate(
+            [c for c in [changes_cat_bin, changes_cat_ohe, changes_num_up, changes_num_down] if len(c) > 0])
+
         # if the Tabu list is larger than zero
         if len(tabu_list) > 0:
-            # Remove all rows which the sum of absolute change vector 
+            # Remove all rows which the sum of absolute change vector
             # partition is larger than zero
-            
+
             # Flatten indexes
             forbidden_indexes = [item for sublist in tabu_list for item in sublist]
-            idx_to_remove = np.where(np.abs(changes[:, forbidden_indexes])!=0)[0]
+            idx_to_remove = np.where(np.abs(changes[:, forbidden_indexes]) != 0)[0]
             changes = np.delete(changes, idx_to_remove, axis=0)
-        
+
         # Create array with CF candidates
         cf_candidates = cf_try + changes
 
@@ -188,19 +209,43 @@ def _super_sedc(factual, mp1c, feat_types, it_max, ohe_list, ohe_indexes, increa
         best_arg = np.argmax(prob_cf_candidates)
 
         # Update CF try
-        cf_try = cf_try+changes[best_arg]
+        cf_try = cf_try + changes[best_arg]
 
         # Calculate how much the score got better
         score_increase = [-cf_try_prob]
 
         # Update the score
-        cf_try_prob = mp1c([cf_try])[0]
+        cf_try_prob = mp1c(np.array([cf_try]))[0]
         if verbose:
-            print(f'SEDC probability {cf_try_prob}')
+            print(
+                f'{"HARD-TRY" if hard_try else ""}SEDC probability {cf_try_prob} -{np.where(changes[best_arg] != 0)[0][0]}')
 
         # Calculate how much the score got better
         score_increase.append(cf_try_prob)
         score_increase = sum(score_increase)
+
+        # If the sum of recent improvements is lower than 0.001 and all changes are in the same class
+        # possibly we are stuck in a local minimum, then, activate Tabu optimization
+        recent_improvements.append(score_increase)
+        if sum(recent_improvements) < 0.001:
+            activate_tabu = True
+
+        # Stuck measure 1
+        # If tabu is activated, include changed index to the list
+        if activate_tabu:
+            # It can be the first detected change since, for numerical results, the change will be the modified
+            # index itself, for binary too. However, it's probably not true for OHE, however, since we use the
+            # function "_get_ohe_list", it does not matter, since any index from OHE will return the list of OHE
+            # which will be forbidden
+            first_detected_change = np.where(changes[best_arg] != 0)[0][0]
+            if first_detected_change in ohe_indexes:
+                tabu_list.append(_get_ohe_list(first_detected_change, ohe_list))
+            else:
+                tabu_list.append([first_detected_change])
+
+            # Stuck measure 2
+            if sum(recent_improvements) < 0.001:
+                add_momentum += 1
 
         # Update number of tries
         iterations += 1
@@ -219,7 +264,7 @@ def _get_ohe_list(f_idx, ohe_list):
 
 
 def _fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types, ft_change_factor,
-                 it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds, verbose):
+                  it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds, hard_try, verbose):
     feat_idx_to_name = pd.Series(factual.index).to_dict()
     feat_idx_to_type = lambda x: feat_types[feat_idx_to_name[x]]
 
@@ -229,17 +274,17 @@ def _fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_thresho
 
     # Create array to store the best solution
     # It has: the VALID CF, the CF score and the objective function  (L1 distance)
-    best_solution = [copy.copy(cf_out), mp1c([cf_out])[0], _obj_function(factual_np, cf_out)]
+    best_solution = [copy.copy(cf_out), mp1c(np.array([cf_out]))[0], _obj_function(factual_np, cf_out)]
 
     # Create variable to store current solution - FIRST TIME
     c_cf = copy.copy(cf_out)
 
     # Check classification
-    c_cf_c = mp1c([c_cf])[0]
+    c_cf_c = mp1c(np.array([c_cf]))[0]
 
     for i in range(ft_it_max):
         # Check time limit
-        if (datetime.now()-time_start).total_seconds() >= limit_seconds:
+        if (datetime.now() - time_start).total_seconds() >= limit_seconds:
             print('Timeout reached')
             break
 
@@ -290,7 +335,8 @@ def _fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_thresho
 
         # If list of changes is 0, return result
         if len(changes_back_factual) == 0:
-            raise Warning('Change list is empty')
+            warnings.warn('Change list is empty')
+            return best_solution
 
         # Generate the CF back factual
         cf_back_factual = c_cf + np.array(copy.copy(changes_back_factual))
@@ -316,7 +362,7 @@ def _fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_thresho
         c_cf = c_cf + mod_change
 
         # Check classification
-        c_cf_c = mp1c([c_cf])[0]
+        c_cf_c = mp1c(np.array([c_cf]))[0]
 
         # Check if still a cf
         if c_cf_c > 0.5:
@@ -336,21 +382,31 @@ def _fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_thresho
 
             # Return to CF, however, considering the Tabu list
             c_cf = _super_sedc(factual=pd.Series(c_cf),
-                              mp1c=mp1c,
-                              feat_types=feat_types,
-                              it_max=it_max,
-                              ohe_list=ohe_list,
-                              ohe_indexes=ohe_indexes,
-                              tabu_list=tabu_list,
-                              increase_threshold=increase_threshold,
-                              verbose=verbose)
+                               mp1c=mp1c,
+                               feat_types=feat_types,
+                               it_max=it_max,
+                               ft_change_factor=ft_change_factor,
+                               ohe_list=ohe_list,
+                               ohe_indexes=ohe_indexes,
+                               tabu_list=tabu_list,
+                               size_tabu=size_tabu,
+                               increase_threshold=increase_threshold,
+                               hard_try=hard_try,
+                               verbose=verbose)
 
     return best_solution
 
 
 def findcf(factual, feat_types, model_predict_proba,
-           increase_threshold=0.001, it_max=100, limit_seconds=60, ft_change_factor=0.1, ft_it_max=50, size_tabu=5,
+           increase_threshold=0.001, it_max=1000, limit_seconds=120, ft_change_factor=0.5, ft_it_max=50, size_tabu=5,
            ft_threshold_distance=0.01, has_ohe=False, verbose=False):
+    # If Tabu size list is larger than the number of features issue a warning and reduce to size_features - 1
+    if len(factual) < size_tabu:
+        size_tabu_new = len(factual) - 1
+        warnings.warn(f'The number of features ({len(factual)}) is lower than the Tabu list size ({size_tabu}),'
+                      f'then, we reduced to the number of features minus 1 (={size_tabu_new})')
+        size_tabu = size_tabu_new
+
     # Timer now
     time_start = datetime.now()
 
@@ -368,32 +424,58 @@ def findcf(factual, feat_types, model_predict_proba,
     # Generate OHE parameters if it has OHE variables
     ohe_list, ohe_indexes = _get_ohe_params(factual, has_ohe)
 
+    hard_try = False
+
     # Generate CF using SEDC
     cf_out = _super_sedc(factual=factual,
-                        mp1c=mp1c,
-                        feat_types=feat_types,
-                        it_max=it_max,
-                        ohe_list=ohe_list,
-                        ohe_indexes=ohe_indexes,
-                        increase_threshold=increase_threshold,
-                        tabu_list=None,
-                        verbose=verbose)
+                         mp1c=mp1c,
+                         feat_types=feat_types,
+                         it_max=it_max,
+                         ft_change_factor=ft_change_factor,
+                         ohe_list=ohe_list,
+                         ohe_indexes=ohe_indexes,
+                         increase_threshold=increase_threshold,
+                         tabu_list=None,
+                         size_tabu=size_tabu,
+                         hard_try=hard_try,
+                         verbose=verbose)
 
-    # Fine tune the counterfactual
-    cf_out_ft = _fine_tunning(factual=factual,
-                             cf_out=cf_out,
+    # Check if CF was found
+    if mp1c(np.array([cf_out]))[0] < 0.5:
+        # Try again however, with hard reduction factor
+        hard_try = True
+        cf_out = _super_sedc(factual=factual,
                              mp1c=mp1c,
+                             feat_types=feat_types,
+                             it_max=it_max,
+                             ft_change_factor=ft_change_factor,
                              ohe_list=ohe_list,
                              ohe_indexes=ohe_indexes,
                              increase_threshold=increase_threshold,
-                             feat_types=feat_types,
-                             ft_change_factor=ft_change_factor,
-                             it_max=it_max,
+                             tabu_list=None,
                              size_tabu=size_tabu,
-                             ft_it_max=ft_it_max,
-                             ft_threshold_distance=ft_threshold_distance,
-                             time_start=time_start,
-                             limit_seconds=limit_seconds,
+                             hard_try=hard_try,
                              verbose=verbose)
+
+    if mp1c(np.array([cf_out]))[0] < 0.5:
+        raise Warning('Test')
+
+    # Fine tune the counterfactual
+    cf_out_ft = _fine_tunning(factual=factual,
+                              cf_out=cf_out,
+                              mp1c=mp1c,
+                              ohe_list=ohe_list,
+                              ohe_indexes=ohe_indexes,
+                              increase_threshold=increase_threshold,
+                              feat_types=feat_types,
+                              ft_change_factor=ft_change_factor,
+                              it_max=it_max,
+                              size_tabu=size_tabu,
+                              ft_it_max=ft_it_max,
+                              ft_threshold_distance=ft_threshold_distance,
+                              time_start=time_start,
+                              limit_seconds=limit_seconds,
+                              hard_try=hard_try,
+                              verbose=verbose)
 
     return cf_out_ft

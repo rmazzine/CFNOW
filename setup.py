@@ -7,7 +7,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='cfnow',
-    packages=find_packages('cfnow'),
+    packages=['cfnow'],
     version='0.0.0',
     description='The easiest way to generate counterfactuals.',
     long_description='This algorithm uses a greedy strategy to find a counterfactual and then a Tabu search optimizer'
