@@ -1,5 +1,6 @@
 import copy
 import warnings
+from itertools import combinations
 from datetime import datetime
 from collections import defaultdict, deque
 
@@ -126,8 +127,12 @@ def _adjust_model_class(factual, mp1):
     return mp1c
 
 
+def oheDetector(lst1, lst2):
+    return len(set(lst1).intersection(lst2)) > 1
+
+
 def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes, increase_threshold,
-                      tabu_list, size_tabu, hard_try, verbose):
+                      tabu_list, size_tabu, verbose):
     recent_improvements = deque(maxlen=(3))
 
     # Start with a greedy optimization, however, if the changes selected are the same and the score increase
@@ -164,51 +169,120 @@ def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_l
     # Implement a threshold for score increase, this avoids having useless moves
     score_increase = increase_threshold + 1
     # Repeat until max iterations
-    for rc in range(10):
-        # Changes
-        # For categorical binary
-        changes_cat_bin = arr_changes_cat_bin * (1 - 2 * cf_try)
-        # For categorical ohe
-        changes_cat_ohe_list = []
-        for ohe_group in ohe_list:
-            changes_cat_ohe_list.append(
-                arr_changes_cat_ohe[ohe_group] - (arr_changes_cat_ohe[ohe_group] * cf_try).sum(axis=0))
-        if len(changes_cat_ohe_list) > 0:
-            changes_cat_ohe = np.concatenate(changes_cat_ohe_list)
-        else:
-            changes_cat_ohe = []
+    while cf_try_prob <= 0.5 and iterations < 5:
+        for n_changes in range(1, 6):
+            # Changes
+            # For categorical binary
+            changes_cat_bin = arr_changes_cat_bin * (1 - 2 * cf_try)
+            # For categorical ohe
+            changes_cat_ohe_list = []
+            for ohe_group in ohe_list:
+                changes_cat_ohe_list.append(
+                    arr_changes_cat_ohe[ohe_group] - (arr_changes_cat_ohe[ohe_group] * cf_try).sum(axis=0))
+            if len(changes_cat_ohe_list) > 0:
+                changes_cat_ohe = np.concatenate(changes_cat_ohe_list)
+            else:
+                changes_cat_ohe = []
 
-        # For numerical up - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
-        changes_num_up = arr_changes_num * ft_change_factor * cf_try + arr_changes_num * add_momentum
-        # For numerical down - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
-        changes_num_down = -copy.copy(changes_num_up)
+            # For numerical up - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
+            changes_num_up = arr_changes_num * ft_change_factor * cf_try + arr_changes_num * add_momentum
+            # For numerical down - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
+            changes_num_down = -copy.copy(changes_num_up)
 
-        # Create changes array
-        changes = np.concatenate(
-            [c for c in [changes_cat_bin, changes_cat_ohe, changes_num_up, changes_num_down] if len(c) > 0])
+            # Create changes array
+            possible_changes = np.concatenate(
+                [c for c in [changes_cat_bin, changes_cat_ohe, changes_num_up, changes_num_down] if len(c) > 0])
 
-        # The change array will be mixed randomly from 1 to n
-        # Create a zero matrix
-        # However, allow all combinations up to a number
-        # Create a random matrix with numbers up to the number of columns  np.random.randint(0,10, (10,10))
-        # Add the row offset for each column
-        # Those are the indexes that must be replaced by 1
+            # # New variables
+            # n_changes = 1
+            # limit_random_array = 10000
 
-        # This can be obtained with a multiplication
+            # This is the number of combinations possible
+            n_comb = np.prod([*range(len(factual) + 1 - n_changes, len(factual) + 1)])
 
-        # Then apply
+            # If the number of combinations is lower than the threshold, create a list of modifications
+            if n_comb < len(factual) * 2 and n_comb < 20000:
+                index_comb = [x for x in combinations([*range(len(possible_changes))], n_changes)]
+            elif len(factual) * 2 < 20000:
+                index_comb = np.random.randint(0, len(possible_changes), (len(factual) * 2, n_changes))
+            else:
+                index_comb = np.random.randint(0, len(possible_changes), (20000, n_changes))
 
-        # search for any CF
+            # # If the number of combinations is lower than the threshold, create a list of modifications
+            # if (n_comb) < 20000:
+            #     index_comb = [x for x in combinations([*range(len(possible_changes))], n_changes)]
+            # else:
+            #     index_comb = np.random.randint(0, len(possible_changes), (50000, n_changes))
 
-        # If yes return and do not try again, since it will give a higher modified CF
+            # The if avoids OHE being incorrectly summed (we can not sum the change of two OHE in the same category)
+            random_changes = np.array([np.sum(possible_changes[r, :], axis=0) for r in index_comb if
+                                       sum([oheDetector(r, ic) for ic in ohe_list]) == 0])
 
-        # This random generation can happen several times
+            # If there are no random changes, return best result
+            if len(random_changes) == 0:
+                return cf_try
+
+            # if the Tabu list is larger than zero
+            if len(tabu_list) > 0:
+                # Remove all rows which the sum of absolute change vector
+                # partition is larger than zero
+
+                # Flatten indexes
+                forbidden_indexes = [item for sublist in tabu_list for item in sublist]
+                idx_to_remove = np.where(np.abs(random_changes[:, forbidden_indexes]) != 0)[0]
+                random_changes = np.delete(random_changes, idx_to_remove, axis=0)
+
+            # If after removing, there's no changes, return
+            if len(random_changes) == 0:
+                return cf_try
+
+            # Create array with CF candidates
+            cf_candidates = cf_try + random_changes
+
+            # Calculate probabilities
+            prob_cf_candidates = mp1c(cf_candidates)
+
+            # Identify which index had the best performance towards objective, it will take the first best
+            best_arg = np.argmax(prob_cf_candidates)
+
+            # Update CF try
+            cf_try = cf_try + random_changes[best_arg]
+
+            # Calculate how much the score got better
+            score_increase = [-cf_try_prob]
+
+            # Update the score
+            cf_try_prob = mp1c(np.array([cf_try]))[0]
+            if verbose:
+                print(f'SEDC probability {cf_try_prob}')
+
+            # Calculate how much the score got better
+            score_increase.append(cf_try_prob)
+
+            # The change array will be mixed randomly from 1 to n
+            # Create a zero matrix
+            # However, allow all combinations up to a number
+            # Create a random matrix with numbers up to the number of columns  np.random.randint(0,10, (10,10))
+            # Add the row offset for each column
+            # Those are the indexes that must be replaced by 1
+
+            # This can be obtained with a multiplication
+
+            # Then apply
+
+            # search for any CF
+
+            # If yes return and do not try again, since it will give a higher modified CF
+
+            # This random generation can happen several times
+        # Increase momentum
+        add_momentum += 1
 
     return cf_try
 
 
 def _super_sedc(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes, increase_threshold,
-                tabu_list, size_tabu, hard_try, verbose):
+                tabu_list, size_tabu, verbose):
     recent_improvements = deque(maxlen=(3))
 
     # Start with a greedy optimization, however, if the changes selected are the same and the score increase
@@ -258,18 +332,11 @@ def _super_sedc(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, o
             changes_cat_ohe = np.concatenate(changes_cat_ohe_list)
         else:
             changes_cat_ohe = []
-        if not hard_try:
-            # For numerical up - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
-            changes_num_up = arr_changes_num * ft_change_factor * cf_try + arr_changes_num * add_momentum
-            # For numerical down - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
-            changes_num_down = -copy.copy(changes_num_up)
-        else:
-            # The hard try is necessary for cases which the numerical results are very low (close to 0)
-            # and then, they need an extra momentum to find CF explanations
-            # For numerical up - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
-            changes_num_up = arr_changes_num * 1 * copy.copy(factual).to_numpy() + arr_changes_num
-            # For numerical down - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
-            changes_num_down = -copy.copy(changes_num_up)
+
+        # For numerical up - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
+        changes_num_up = arr_changes_num * ft_change_factor * cf_try + arr_changes_num * add_momentum
+        # For numerical down - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
+        changes_num_down = -copy.copy(changes_num_up)
 
         # Create changes array
         changes = np.concatenate(
@@ -303,8 +370,7 @@ def _super_sedc(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, o
         # Update the score
         cf_try_prob = mp1c(np.array([cf_try]))[0]
         if verbose:
-            print(
-                f'{"HARD-TRY" if hard_try else ""}SEDC probability {cf_try_prob} -{np.where(changes[best_arg] != 0)[0][0]}')
+            print(f'SEDC probability {cf_try_prob} -{np.where(changes[best_arg] != 0)[0][0]}')
             print(cf_try)
 
         # Calculate how much the score got better
@@ -353,13 +419,16 @@ def _get_ohe_list(f_idx, ohe_list):
 
 
 def _fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types, ft_change_factor,
-                  it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds, hard_try, verbose):
+                  it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds, cf_finder, verbose):
     feat_idx_to_name = pd.Series(factual.index).to_dict()
     feat_idx_to_type = lambda x: feat_types[feat_idx_to_name[x]]
 
     factual_np = factual.to_numpy()
 
     tabu_list = deque(maxlen=(size_tabu))
+
+    # Get all feature types
+    all_feat_types = list(set(feat_types.values()))
 
     # Create array to store the best solution
     # It has: the VALID CF, the CF score and the objective function  (L1 distance)
@@ -372,13 +441,19 @@ def _fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_thresho
     c_cf_c = mp1c(np.array([c_cf]))[0]
 
     for i in range(ft_it_max):
+
+        # If all categorical and distance is 1, then, it's the best optimized solution, return result
+        if len(all_feat_types) == 1 and all_feat_types[0] == 'cat':
+            if _obj_function(factual_np, c_cf) == 1:
+                return best_solution
+
         # Check time limit
         if (datetime.now() - time_start).total_seconds() >= limit_seconds:
             print('Timeout reached')
-            break
+            return best_solution
 
         if verbose:
-            print(best_solution)
+            print(tabu_list)
             print(f'Fine tuning: Prob={c_cf_c} / Distance={_obj_function(factual_np, c_cf)}')
 
         # Generate change vector with all changes that would make the cf return
@@ -462,7 +537,7 @@ def _fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_thresho
             c_cf_o = _obj_function(factual_np, c_cf)
             # Check if it's a better solution
             if c_cf_o < best_solution[2]:
-                best_solution = [copy.copy(cf_out), c_cf_c, c_cf_o]
+                best_solution = [copy.copy(c_cf), c_cf_c, c_cf_o]
         else:
             # Add index to Tabu list
             # If numerical or binary, just add the single index
@@ -473,25 +548,33 @@ def _fine_tunning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_thresho
                 tabu_list.append([change_original_idx])
 
             # Return to CF, however, considering the Tabu list
-            c_cf = _super_sedc(factual=pd.DataFrame([c_cf], columns=factual.index).iloc[0],
-                               mp1c=mp1c,
-                               feat_types=feat_types,
-                               it_max=it_max,
-                               ft_change_factor=ft_change_factor,
-                               ohe_list=ohe_list,
-                               ohe_indexes=ohe_indexes,
-                               tabu_list=tabu_list,
-                               size_tabu=size_tabu,
-                               increase_threshold=increase_threshold,
-                               hard_try=hard_try,
-                               verbose=verbose)
+            c_cf = cf_finder(factual=pd.DataFrame([c_cf], columns=factual.index).iloc[0],
+                             mp1c=mp1c,
+                             feat_types=feat_types,
+                             it_max=it_max,
+                             ft_change_factor=ft_change_factor,
+                             ohe_list=ohe_list,
+                             ohe_indexes=ohe_indexes,
+                             tabu_list=tabu_list,
+                             size_tabu=size_tabu,
+                             increase_threshold=increase_threshold,
+                             verbose=verbose)
 
     return best_solution
 
 
 def findcf(factual, feat_types, model_predict_proba,
-           increase_threshold=0, it_max=1000, limit_seconds=120, ft_change_factor=0.1, ft_it_max=1000, size_tabu=5,
-           ft_threshold_distance=0, has_ohe=False, verbose=False):
+           cf_strategy='greedy', increase_threshold=0, it_max=1000, limit_seconds=30, ft_change_factor=0.1,
+           ft_it_max=1000, size_tabu=5, ft_threshold_distance=0.01, has_ohe=False, verbose=False):
+    # There are two types of CF finding strategy, greedy or random
+    if cf_strategy not in ['random', 'greedy']:
+        raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
+
+    if cf_strategy == 'random':
+        cf_finder = _random_generator
+    elif cf_strategy == 'greedy':
+        cf_finder = _super_sedc
+
     # If Tabu size list is larger than the number of features issue a warning and reduce to size_features - 1
     if len(factual) < size_tabu:
         size_tabu_new = len(factual) - 1
@@ -515,43 +598,21 @@ def findcf(factual, feat_types, model_predict_proba,
 
     # Generate OHE parameters if it has OHE variables
     ohe_list, ohe_indexes = _get_ohe_params(factual, has_ohe)
-
-    hard_try = False
-
     # Generate CF using SEDC
-    cf_out = _super_sedc(factual=factual,
-                         mp1c=mp1c,
-                         feat_types=feat_types,
-                         it_max=it_max,
-                         ft_change_factor=ft_change_factor,
-                         ohe_list=ohe_list,
-                         ohe_indexes=ohe_indexes,
-                         increase_threshold=increase_threshold,
-                         tabu_list=None,
-                         size_tabu=size_tabu,
-                         hard_try=hard_try,
-                         verbose=verbose)
-
-    # Check if CF was found
-    if mp1c(np.array([cf_out]))[0] < 0.5:
-        # Try again however, with hard reduction factor
-        raise Warning('Test')
-        # hard_try = True
-        # cf_out = _super_sedc(factual=factual,
-        #                      mp1c=mp1c,
-        #                      feat_types=feat_types,
-        #                      it_max=it_max,
-        #                      ft_change_factor=ft_change_factor,
-        #                      ohe_list=ohe_list,
-        #                      ohe_indexes=ohe_indexes,
-        #                      increase_threshold=increase_threshold,
-        #                      tabu_list=None,
-        #                      size_tabu=size_tabu,
-        #                      hard_try=hard_try,
-        #                      verbose=verbose)
+    cf_out = cf_finder(factual=factual,
+                       mp1c=mp1c,
+                       feat_types=feat_types,
+                       it_max=it_max,
+                       ft_change_factor=ft_change_factor,
+                       ohe_list=ohe_list,
+                       ohe_indexes=ohe_indexes,
+                       increase_threshold=increase_threshold,
+                       tabu_list=None,
+                       size_tabu=size_tabu,
+                       verbose=verbose)
 
     if mp1c(np.array([cf_out]))[0] < 0.5:
-        raise Warning('Test')
+        raise Warning('No CF found')
 
     # Fine tune the counterfactual
     cf_out_ft = _fine_tunning(factual=factual,
@@ -568,9 +629,10 @@ def findcf(factual, feat_types, model_predict_proba,
                               ft_threshold_distance=ft_threshold_distance,
                               time_start=time_start,
                               limit_seconds=limit_seconds,
-                              hard_try=hard_try,
+                              cf_finder=cf_finder,
                               verbose=verbose)
 
     print(_obj_function(np.array(factual), cf_out_ft[0]))
+    print(sum(cf_out_ft[0]))
 
     return cf_out_ft
