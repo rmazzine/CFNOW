@@ -1,5 +1,7 @@
 # CFNOW
 
+CF - Nearest Optimal Wololo
+
 The simplest way to generate counterfactuals for any tabular dataset and model.
 
 This package finds an optimal point (closer to the  input dataset point), which the classification is different from the original classification (i.e. "flips" the classification of the original input by minimally changin it).
