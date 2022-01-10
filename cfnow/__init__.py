@@ -1,1 +1,5 @@
-from cfnow import cfnow
+from cfnow import cf_finder
+
+__all__ = [
+    'cf_finder'
+]
