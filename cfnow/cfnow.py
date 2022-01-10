@@ -319,7 +319,9 @@ def _super_sedc(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, o
     # Implement a threshold for score increase, this avoids having useless moves
     score_increase = increase_threshold + 1
     # Repeat until max iterations
-    while cf_try_prob <= 0.5 and iterations < it_max and score_increase >= increase_threshold:
+    # The third condition (limit threshold) should only be applied if the Tabu is not activated
+    # since the activation of Tabu can lead to decrease in score and it's normal
+    while cf_try_prob <= 0.5 and iterations < it_max and ((score_increase >= increase_threshold) if not activate_tabu else True):
         # Changes
         # For categorical binary
         changes_cat_bin = arr_changes_cat_bin * (1 - 2 * cf_try)
