@@ -23,7 +23,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # TODO: Categorical only datasets have minimum modification equal to 1, we can detect if this happens and stop search
 
 
-def find(factual, feat_types, model_predict_proba,
+def find_tabular(factual, feat_types, model_predict_proba,
          cf_strategy='greedy', increase_threshold=0, it_max=1000, limit_seconds=30, ft_change_factor=0.1,
          ft_it_max=1000, size_tabu=5, ft_threshold_distance=0.01, has_ohe=False, verbose=False):
     """
