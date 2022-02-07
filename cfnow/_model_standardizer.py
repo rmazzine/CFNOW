@@ -7,6 +7,8 @@ import copy
 import numpy as np
 import pandas as pd
 
+from ._data_standardizer import _seg_to_img
+
 
 def _standardize_predictor(factual, model_predict_proba):
     prob_fact = model_predict_proba(factual.to_frame().T)
@@ -73,7 +75,12 @@ def _adjust_model_class(factual, mp1):
 def _adjust_image_model(img, model_predict, segments, replace_img):
     # x is the array where the index represent the segmentation area number and the value 1 means the original
     # image and 0 the replaced image
-    return lambda x: model_predict(np.array([np.array([np.isin(segments, np.where(xr)[0]).astype(float)]*3).reshape(img.shape)*img + np.array([np.isin(segments, np.where(xr==0)[0]).astype(float)]*3).reshape(img.shape)*replace_img for xr in x]))
+    def mic(seg_arr):
+        converted_imgs = _seg_to_img(seg_arr, img, segments, replace_img)
+
+        return model_predict(np.array(converted_imgs))
+
+    return mic
 
 
 def _adjust_image_multiclass_nonspecific(factual, mic):
@@ -97,6 +104,36 @@ def _adjust_image_multiclass_nonspecific(factual, mic):
 
         # Make the comparison
         class_dif = pred_factual_class - pred_best_cf_class
+
+        # Return a probability like value, where 1 is the factual and 0 counterfactual
+        return 1/(1+np.e**(class_dif))
+
+    return mimns
+
+
+def _adjust_image_multiclass_second_best(factual, mic):
+    # Compare the factual class value to the other highest
+    pred_factual = mic([factual])
+    factual_idx = copy.copy(np.argmax(pred_factual))
+    pred_factual[0][factual_idx] = -np.inf
+    cf_idx = copy.copy(np.argmax(pred_factual))
+
+    def mimns(cf_candidates):
+        # Calculate the prediction of the candidates
+        # Sometimes it can receive a dataframe, if it's the case, treat accordingly
+        if type(cf_candidates) == pd.DataFrame:
+            pred_cfs = mic(cf_candidates.to_numpy())
+        else:
+            pred_cfs = mic(cf_candidates)
+        # Get the value of the factual class
+        pred_cf_class = np.copy(pred_cfs[: ,cf_idx])
+        # Now, to guarantee to get the best non factual value, let's consider the factual idx as -infinity
+        pred_cfs[: ,cf_idx] = -np.inf
+        # Now, get the best value which is not the CF
+        pred_best_ncf_class = np.max(pred_cfs, axis=1)
+
+        # Make the comparison
+        class_dif = pred_best_ncf_class - pred_cf_class
 
         # Return a probability like value, where 1 is the factual and 0 counterfactual
         return 1/(1+np.e**(class_dif))

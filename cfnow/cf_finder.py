@@ -10,10 +10,10 @@ import cv2
 
 from ._cf_searchers import _random_generator, _super_sedc
 from ._checkers import _check_factual, _check_vars, _check_prob_func
-from ._data_standardizer import _get_ohe_params
+from ._data_standardizer import _get_ohe_params, _seg_to_img
 from ._fine_tune import _fine_tuning
 from ._model_standardizer import _standardize_predictor, _adjust_model_class, _adjust_image_model, \
-    _adjust_image_multiclass_nonspecific
+    _adjust_image_multiclass_nonspecific, _adjust_image_multiclass_second_best
 from ._obj_functions import _obj_manhattan
 from ._img_segmentation import gen_quickshift
 
@@ -141,8 +141,8 @@ def find_tabular(factual, feat_types, model_predict_proba,
 
 
 def find_image(img, model_predict, segmentation='quickshift', params_segmentation=None, cf_strategy='greedy',
-               replace_mode='blur', increase_threshold=0, it_max=1000, limit_seconds=30, ft_change_factor=0.1,
-               ft_it_max=1000, size_tabu=5, ft_threshold_distance=0.01, has_ohe=False, verbose=False):
+               replace_mode='blur', increase_threshold=-1, it_max=1000, limit_seconds=30, ft_change_factor=0.1,
+               ft_it_max=1000, size_tabu=None, ft_threshold_distance=0.01, has_ohe=False, verbose=False):
     """
 
     :param img: Image already processed to be classified, must be normalized between 0 and 1
@@ -183,7 +183,7 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
     elif replace_mode == 'random':
         replace_img = np.random.random(img.shape)
     elif replace_mode == 'inpaint':
-        replace_img = np.zeros((224,224,3))
+        replace_img = np.zeros(img.shape)
         for j in np.unique(segments):
             image_absolute = (img*255).astype('uint8')
             mask = np.full([image_absolute.shape[0], image_absolute.shape[1]], 0)
@@ -194,9 +194,17 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
     else:
         raise AttributeError(f'replace_mode must be "mean", "blur", "random" or "inpaint" and not {segmentation}')
 
+    # Green replacement to highlight changes
+    green_replace = np.zeros(img.shape)
+    green_replace[:,:,1] = 1
+
     # Now create the factual, that depends of the segments and interpret them as binary features
     # Initially, all segments are activated (equal to 1)
     factual = pd.Series(np.array([1]*(np.max(segments) + 1)))
+
+    # If not defined, tabu is the half the factual size
+    if size_tabu is None:
+        size_tabu = int(len(factual)/2)
 
     # If Tabu size list is larger than the number of segments issue a warning and reduce to size_features - 1
     if len(factual) < size_tabu:
@@ -208,8 +216,7 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
     # Timer now
     time_start = datetime.now()
 
-    # Make checks
-
+    # TODO: Make checks
 
     # Define all features as binary
     feat_types = {fidx: 'cat' for fidx in range(len(factual)) }
@@ -219,7 +226,7 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
     mic = _adjust_image_model(img, model_predict, segments, replace_img)
 
     # Get probability values adjusted
-    mimns = _adjust_image_multiclass_nonspecific(factual, mic)
+    mimns = _adjust_image_multiclass_second_best(factual, mic)
 
     # Generate CF using a CF finder
     cf_out = cf_finder(factual=factual,
@@ -236,7 +243,6 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
 
     if mimns(np.array([cf_out]))[0] < 0.5:
         raise Warning('No CF found')
-
 
     # Fine tune the counterfactual
     cf_out_ft = _fine_tuning(factual=factual,
@@ -256,6 +262,7 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
                               cf_finder=cf_finder,
                               verbose=verbose)
 
-    cf_image = np.array([np.isin(segments, np.where(cf_out_ft[0])[0]).astype(float)]*3).reshape(img.shape)*img + np.array([np.isin(segments, np.where(cf_out_ft[0]==0)[0]).astype(float)]*3).reshape(img.shape)*replace_img
+    cf_img = _seg_to_img([cf_out_ft[0]], img, segments, replace_img)[0]
+    cf_img_highlight = _seg_to_img([cf_out_ft[0]], img, segments, green_replace)[0]
 
-    return cf_image
+    return cf_img, cf_img_highlight
