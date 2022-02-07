@@ -140,9 +140,10 @@ def find_tabular(factual, feat_types, model_predict_proba,
     return cf_out_ft
 
 
-def find_image(img, model_predict, segmentation='quickshift', params_segmentation=None, cf_strategy='greedy',
-               replace_mode='blur', increase_threshold=-1, it_max=1000, limit_seconds=30, ft_change_factor=0.1,
-               ft_it_max=1000, size_tabu=None, ft_threshold_distance=0.01, has_ohe=False, verbose=False):
+def find_image(img, model_predict, segmentation='quickshift', params_segmentation=None, img_cf_strategy='nonspecific',
+               cf_strategy='greedy', replace_mode='blur', increase_threshold=-1, it_max=1000, limit_seconds=30,
+               ft_change_factor=0.1, ft_it_max=1000, size_tabu=None, ft_threshold_distance=0.01,
+               has_ohe=False, verbose=False):
     """
 
     :param img: Image already processed to be classified, must be normalized between 0 and 1
@@ -226,7 +227,12 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
     mic = _adjust_image_model(img, model_predict, segments, replace_img)
 
     # Get probability values adjusted
-    mimns = _adjust_image_multiclass_second_best(factual, mic)
+    if img_cf_strategy == 'nonspecific':
+        mimns = _adjust_image_multiclass_nonspecific(factual, mic)
+    elif img_cf_strategy == 'second_best':
+        mimns = _adjust_image_multiclass_second_best(factual, mic)
+    else:
+        raise AttributeError(f'img_cf_strategy must be "nonspecific" or "second_best" and not {img_cf_strategy}')
 
     # Generate CF using a CF finder
     cf_out = cf_finder(factual=factual,
