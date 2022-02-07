@@ -68,3 +68,37 @@ def _adjust_model_class(factual, mp1):
         mp1c = lambda x: 1 - mp1(x)
 
     return mp1c
+
+
+def _adjust_image_model(img, model_predict, segments, replace_img):
+    # x is the array where the index represent the segmentation area number and the value 1 means the original
+    # image and 0 the replaced image
+    return lambda x: model_predict(np.array([np.array([np.isin(segments, np.where(xr)[0]).astype(float)]*3).reshape(img.shape)*img + np.array([np.isin(segments, np.where(xr==0)[0]).astype(float)]*3).reshape(img.shape)*replace_img for xr in x]))
+
+
+def _adjust_image_multiclass_nonspecific(factual, mic):
+    # Compare the factual class value to the other highest
+    pred_factual = mic([factual])
+    factual_idx = np.argmax(pred_factual)
+
+    def mimns(cf_candidates):
+        # Calculate the prediction of the candidates
+        # Sometimes it can receive a dataframe, if it's the case, treat accordingly
+        if type(cf_candidates) == pd.DataFrame:
+            pred_cfs = mic(cf_candidates.to_numpy())
+        else:
+            pred_cfs = mic(cf_candidates)
+        # Get the value of the factual class
+        pred_factual_class = np.copy(pred_cfs[: ,factual_idx])
+        # Now, to guarantee to get the best non factual value, let's consider the factual idx as -infinity
+        pred_cfs[: ,factual_idx] = -np.inf
+        # Now, get the best values for each candidate
+        pred_best_cf_class = np.max(pred_cfs, axis=1)
+
+        # Make the comparison
+        class_dif = pred_factual_class - pred_best_cf_class
+
+        # Return a probability like value, where 1 is the factual and 0 counterfactual
+        return 1/(1+np.e**(class_dif))
+
+    return mimns
