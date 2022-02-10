@@ -139,3 +139,7 @@ def _adjust_image_multiclass_second_best(factual, mic):
         return 1/(1+np.e**(class_dif))
 
     return mimns
+
+
+def _adjust_textual_classifier(textual_classifier, converter, original_text_classification):
+    return lambda array_texts: textual_classifier(converter(array_texts)) if original_text_classification < 0.5 else 1 - textual_classifier(converter(array_texts))

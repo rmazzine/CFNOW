@@ -1,6 +1,7 @@
 """
 This module has the function that produces the CF using different types of cf finders and fine-tune.
 """
+import copy
 import warnings
 from datetime import datetime
 
@@ -10,10 +11,10 @@ import cv2
 
 from ._cf_searchers import _random_generator, _super_sedc
 from ._checkers import _check_factual, _check_vars, _check_prob_func
-from ._data_standardizer import _get_ohe_params, _seg_to_img
+from ._data_standardizer import _get_ohe_params, _seg_to_img, _text_to_change_vector, _convert_change_vectors_func
 from ._fine_tune import _fine_tuning
 from ._model_standardizer import _standardize_predictor, _adjust_model_class, _adjust_image_model, \
-    _adjust_image_multiclass_nonspecific, _adjust_image_multiclass_second_best
+    _adjust_image_multiclass_nonspecific, _adjust_image_multiclass_second_best, _adjust_textual_classifier
 from ._obj_functions import _obj_manhattan
 from ._img_segmentation import gen_quickshift
 
@@ -272,3 +273,91 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
     cf_img_highlight = _seg_to_img([cf_out_ft[0]], img, segments, green_replace)[0]
 
     return cf_img, cf_img_highlight
+
+
+def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace_strategy='antonyms', increase_threshold=-1,
+              it_max=1000, limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000, size_tabu=None,
+              ft_threshold_distance=0.01, has_ohe=False, verbose=False):
+    # Textual predictor must receive an array of texts and output a class between 0 and 1
+
+    cf_finder = None
+    if cf_strategy == 'random':
+        cf_finder = _random_generator
+    elif cf_strategy == 'greedy':
+        cf_finder = _super_sedc
+    if cf_finder is None:
+        raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
+
+    # Timer now
+    time_start = datetime.now()
+
+    # TODO: Make checkers
+
+    # Define type of word replacement strategy
+    if word_replace_strategy == 'antonyms':
+        text_words, change_vector, text_antonyms = _text_to_change_vector(text_input)
+        converter = _convert_change_vectors_func(text_words, change_vector, text_antonyms)
+        factual = copy.copy(change_vector)
+    else:
+        raise AttributeError(f'word_replace_strategy must be "antonyms" and not {word_replace_strategy}')
+
+    feat_types = {c: 'cat' for c in factual.columns}
+
+    original_text_classification = np.array(textual_classifier([text_input])).reshape(-1)[0]
+
+    mt = _adjust_textual_classifier(textual_classifier, converter, original_text_classification)
+
+    # Standardize the predictor output
+    mts = _standardize_predictor(factual.iloc[0], mt)
+
+    encoded_text_classification = mts(factual)[0]
+
+    # Verify if the encoded classification is equal to the original classification
+    # the first part must be adjusted if the score is higher than 1 since the model will flip the class
+    if (original_text_classification if original_text_classification < 0.5 else 1 - original_text_classification) != encoded_text_classification:
+        raise Exception('The original text and classifier have a different result compared with the encoded text and '
+                        'adapted model. PLEASE REPORT THIS BUG, PREFERABLY WITH THE DATA AND MODEL USED.')
+
+    # Generate OHE parameters if it has OHE variables
+    ohe_list, ohe_indexes = _get_ohe_params(factual.iloc[0], True)
+
+    # Generate CF using a CF finder
+    cf_out = cf_finder(factual=factual.iloc[0],
+                       mp1c=mts,
+                       feat_types=feat_types,
+                       it_max=it_max,
+                       ft_change_factor=ft_change_factor,
+                       ohe_list=ohe_list,
+                       ohe_indexes=ohe_indexes,
+                       increase_threshold=increase_threshold,
+                       tabu_list=None,
+                       size_tabu=size_tabu,
+                       verbose=verbose)
+
+
+    # If no CF was found, return original text, since this may be common, it will not raise errors
+    if mts(np.array([cf_out]))[0] < 0.5:
+        print('No CF found')
+        return text_input
+
+    # Fine tune the counterfactual
+    cf_out_ft = _fine_tuning(factual=factual.iloc[0],
+                              cf_out=cf_out,
+                              mp1c=mts,
+                              ohe_list=ohe_list,
+                              ohe_indexes=ohe_indexes,
+                              increase_threshold=increase_threshold,
+                              feat_types=feat_types,
+                              ft_change_factor=ft_change_factor,
+                              it_max=it_max,
+                              size_tabu=size_tabu,
+                              ft_it_max=ft_it_max,
+                              ft_threshold_distance=ft_threshold_distance,
+                              time_start=time_start,
+                              limit_seconds=limit_seconds,
+                              cf_finder=cf_finder,
+                              verbose=verbose)
+
+    converted_output = converter([cf_out_ft[0]])
+
+    return converted_output[0]
