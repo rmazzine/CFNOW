@@ -315,11 +315,15 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
     # Verify if the encoded classification is equal to the original classification
     # the first part must be adjusted if the score is higher than 1 since the model will flip the class
     if (original_text_classification if original_text_classification < 0.5 else 1 - original_text_classification) != encoded_text_classification:
-        raise Exception('The original text and classifier have a different result compared with the encoded text and '
-                        'adapted model. PLEASE REPORT THIS BUG, PREFERABLY WITH THE DATA AND MODEL USED.')
+        print('The original text and classifier have a different result compared with the encoded text and '
+              'adapted model. PLEASE REPORT THIS BUG, PREFERABLY WITH THE DATA AND MODEL USED.')
 
     # Generate OHE parameters if it has OHE variables
     ohe_list, ohe_indexes = _get_ohe_params(factual.iloc[0], True)
+
+    # Define Tabu list size if it's none
+    if size_tabu is None:
+        size_tabu = int(len(ohe_list)/2)
 
     # Generate CF using a CF finder
     cf_out = cf_finder(factual=factual.iloc[0],
@@ -358,6 +362,7 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
                               cf_finder=cf_finder,
                               verbose=verbose)
 
+    factual_adjusted = converter([factual])
     converted_output = converter([cf_out_ft[0]])
 
-    return converted_output[0]
+    return factual_adjusted[0], converted_output[0]
