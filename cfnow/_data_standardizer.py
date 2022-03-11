@@ -49,7 +49,9 @@ def _seg_to_img(seg_arr, img, segments, replace_img):
     for seg in seg_arr:
         mask_original = np.isin(segments, np.where(seg)[0]).astype(float)
         mask_replace = (mask_original == 0).astype(float)
-        converted_imgs.append((img.T * mask_original).T + (replace_img.T * mask_replace).T)
+        converted_imgs.append(
+            img * np.stack((mask_original, mask_original, mask_original), axis=-1) +
+            replace_img * np.stack((mask_replace, mask_replace, mask_replace), axis=-1))
 
     return converted_imgs
 
@@ -99,24 +101,24 @@ def _get_antonyms(word, pos):
 
     # Word types allowed for antonyms: JJ - Adjective, JJR - adjective comparative, JJS - Adjective superlative
     # RB - adverb, RBR - adverb comparative, RBS - adverb superlative
-    if pos in ['JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ']:
-        for syn in wordnet.synsets(word):
-            for l in syn.lemmas():
-                if l.antonyms():
-                    antonym_word = l.antonyms()[0].name()
-                    if antonym_word in verb_tenses_dict.keys():
-                        if pos == 'VBD':
-                            antonyms.append(verb_tenses_dict[antonym_word][1])
-                        elif pos == 'VBG':
-                            antonyms.append(verb_tenses_dict[antonym_word][3])
-                        elif pos == 'VBN':
-                            antonyms.append(verb_tenses_dict[antonym_word][2])
-                        elif pos == 'VBZ':
-                            antonyms.append(verb_tenses_dict[antonym_word][0])
-                        else:
-                            antonyms.append(antonym_word)
+    # if pos in ['JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ']:
+    for syn in wordnet.synsets(word):
+        for l in syn.lemmas():
+            if l.antonyms():
+                antonym_word = l.antonyms()[0].name()
+                if antonym_word in verb_tenses_dict.keys():
+                    if pos == 'VBD':
+                        antonyms.append(verb_tenses_dict[antonym_word][1])
+                    elif pos == 'VBG':
+                        antonyms.append(verb_tenses_dict[antonym_word][3])
+                    elif pos == 'VBN':
+                        antonyms.append(verb_tenses_dict[antonym_word][2])
+                    elif pos == 'VBZ':
+                        antonyms.append(verb_tenses_dict[antonym_word][0])
                     else:
                         antonyms.append(antonym_word)
+                else:
+                    antonyms.append(antonym_word)
 
     antonyms = list(set(antonyms))
     if len(antonyms) > 0:
