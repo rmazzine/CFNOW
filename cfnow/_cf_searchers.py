@@ -11,7 +11,7 @@ from ._data_standardizer import _ohe_detector, _get_ohe_list
 
 
 def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes, increase_threshold,
-                      tabu_list, size_tabu, verbose):
+                      tabu_list, size_tabu, avoid_back_original, verbose):
     recent_improvements = deque(maxlen=(3))
 
     # Start with a greedy optimization, however, if the changes selected are the same and the score increase
@@ -71,6 +71,13 @@ def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_l
             # Create changes array
             possible_changes = np.concatenate(
                 [c for c in [changes_cat_bin, changes_cat_ohe, changes_num_up, changes_num_down] if len(c) > 0])
+
+            # If the flag to back to original is set, then, remove all changes that make the result back to original values
+            if avoid_back_original:
+                n_same_cf_try = (cf_try == factual).sum()
+                n_same_possible_changes = ((possible_changes + cf_try) == factual[0]).sum(axis=1)
+                idx_same_drop = np.where(n_same_possible_changes >= n_same_cf_try)[0]
+                possible_changes = np.delete(possible_changes, idx_same_drop, axis=0)
 
             # # New variables
             # n_changes = 1
@@ -161,7 +168,7 @@ def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_l
 
 
 def _super_sedc(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes, increase_threshold,
-                tabu_list, size_tabu, verbose):
+                tabu_list, size_tabu, avoid_back_original, verbose):
     recent_improvements = deque(maxlen=(3))
 
     # Start with a greedy optimization, however, if the changes selected are the same and the score increase
@@ -223,8 +230,15 @@ def _super_sedc(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, o
         changes = np.concatenate(
             [c for c in [changes_cat_bin, changes_cat_ohe, changes_num_up, changes_num_down] if len(c) > 0])
 
+        # If the flag to back to original is set, then, remove all changes that make the result back to original values
+        if avoid_back_original:
+            n_same_cf_try = (cf_try == factual).sum()
+            n_same_changes = ((changes+cf_try) == factual[0]).sum(axis=1)
+            idx_same_drop = np.where(n_same_changes >= n_same_cf_try)[0]
+            changes = np.delete(changes, idx_same_drop, axis=0)
+
         # Drop all zero rows
-        changes = np.delete(changes, np.where(np.abs(changes).sum(axis=1)==0)[0], axis=0)
+        changes = np.delete(changes, np.where(np.abs(changes).sum(axis=1) == 0)[0], axis=0)
 
         # if the Tabu list is larger than zero
         if len(tabu_list) > 0:

@@ -15,7 +15,8 @@ from ._obj_functions import _obj_manhattan
 
 
 def _fine_tuning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types, ft_change_factor,
-                 it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds, cf_finder, verbose):
+                 it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds, cf_finder,
+                 avoid_back_original, verbose):
     feat_idx_to_name = pd.Series(factual.index).to_dict()
     feat_idx_to_type = lambda x: feat_types[feat_idx_to_name[x]]
 
@@ -154,6 +155,7 @@ def _fine_tuning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshol
                              tabu_list=tabu_list,
                              size_tabu=size_tabu,
                              increase_threshold=increase_threshold,
+                             avoid_back_original=avoid_back_original,
                              verbose=verbose)
 
     return best_solution

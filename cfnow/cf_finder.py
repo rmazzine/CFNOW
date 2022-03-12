@@ -28,9 +28,9 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # TODO: Categorical only datasets have minimum modification equal to 1, we can detect if this happens and stop search
 
 
-def find_tabular(factual, feat_types, model_predict_proba,
-         cf_strategy='greedy', increase_threshold=0, it_max=1000, limit_seconds=30, ft_change_factor=0.1,
-         ft_it_max=1000, size_tabu=5, ft_threshold_distance=0.01, has_ohe=False, verbose=False):
+def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy', increase_threshold=0, it_max=1000,
+                 limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000, size_tabu=5, ft_threshold_distance=0.01,
+                 has_ohe=False, avoid_back_original=False, verbose=False):
     """
 
     :param factual: The factual point as Pandas DataFrame
@@ -112,6 +112,7 @@ def find_tabular(factual, feat_types, model_predict_proba,
                        increase_threshold=increase_threshold,
                        tabu_list=None,
                        size_tabu=size_tabu,
+                       avoid_back_original=avoid_back_original,
                        verbose=verbose)
 
     if mp1c(np.array([cf_out]))[0] < 0.5:
@@ -119,21 +120,22 @@ def find_tabular(factual, feat_types, model_predict_proba,
 
     # Fine tune the counterfactual
     cf_out_ft = _fine_tuning(factual=factual,
-                              cf_out=cf_out,
-                              mp1c=mp1c,
-                              ohe_list=ohe_list,
-                              ohe_indexes=ohe_indexes,
-                              increase_threshold=increase_threshold,
-                              feat_types=feat_types,
-                              ft_change_factor=ft_change_factor,
-                              it_max=it_max,
-                              size_tabu=size_tabu,
-                              ft_it_max=ft_it_max,
-                              ft_threshold_distance=ft_threshold_distance,
-                              time_start=time_start,
-                              limit_seconds=limit_seconds,
-                              cf_finder=cf_finder,
-                              verbose=verbose)
+                             cf_out=cf_out,
+                             mp1c=mp1c,
+                             ohe_list=ohe_list,
+                             ohe_indexes=ohe_indexes,
+                             increase_threshold=increase_threshold,
+                             feat_types=feat_types,
+                             ft_change_factor=ft_change_factor,
+                             it_max=it_max,
+                             size_tabu=size_tabu,
+                             ft_it_max=ft_it_max,
+                             ft_threshold_distance=ft_threshold_distance,
+                             time_start=time_start,
+                             limit_seconds=limit_seconds,
+                             cf_finder=cf_finder,
+                             avoid_back_original=avoid_back_original,
+                             verbose=verbose)
 
     print(_obj_manhattan(np.array(factual), cf_out_ft[0]))
     print(sum(cf_out_ft[0]))
@@ -141,10 +143,10 @@ def find_tabular(factual, feat_types, model_predict_proba,
     return cf_out_ft
 
 
-def find_image(img, model_predict, segmentation='quickshift', params_segmentation=None, img_cf_strategy='nonspecific',
-               cf_strategy='greedy', replace_mode='blur', increase_threshold=-1, it_max=1000, limit_seconds=30,
-               ft_change_factor=0.1, ft_it_max=1000, size_tabu=None, ft_threshold_distance=0.01,
-               has_ohe=False, verbose=False):
+def find_image(img, model_predict, segmentation='quickshift', avoid_back_original=True, params_segmentation=None,\
+               img_cf_strategy='nonspecific', cf_strategy='greedy', replace_mode='blur', increase_threshold=-1,
+               it_max=1000, limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000, size_tabu=None,
+               ft_threshold_distance=0.01, has_ohe=False, verbose=False):
     """
 
     :param img: Image already processed to be classified, must be normalized between 0 and 1
@@ -245,6 +247,7 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
                        ohe_indexes=[],
                        increase_threshold=increase_threshold,
                        tabu_list=None,
+                       avoid_back_original=avoid_back_original,
                        size_tabu=size_tabu,
                        verbose=verbose)
 
@@ -253,31 +256,33 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
 
     # Fine tune the counterfactual
     cf_out_ft = _fine_tuning(factual=factual,
-                              cf_out=cf_out,
-                              mp1c=mimns,
-                              ohe_list=[],
-                              ohe_indexes=[],
-                              increase_threshold=increase_threshold,
-                              feat_types=feat_types,
-                              ft_change_factor=ft_change_factor,
-                              it_max=it_max,
-                              size_tabu=size_tabu,
-                              ft_it_max=ft_it_max,
-                              ft_threshold_distance=ft_threshold_distance,
-                              time_start=time_start,
-                              limit_seconds=limit_seconds,
-                              cf_finder=cf_finder,
-                              verbose=verbose)
+                             cf_out=cf_out,
+                             mp1c=mimns,
+                             ohe_list=[],
+                             ohe_indexes=[],
+                             increase_threshold=increase_threshold,
+                             feat_types=feat_types,
+                             ft_change_factor=ft_change_factor,
+                             it_max=it_max,
+                             size_tabu=size_tabu,
+                             ft_it_max=ft_it_max,
+                             ft_threshold_distance=ft_threshold_distance,
+                             time_start=time_start,
+                             limit_seconds=limit_seconds,
+                             cf_finder=cf_finder,
+                             avoid_back_original=avoid_back_original,
+                             verbose=verbose)
 
     cf_img = _seg_to_img([cf_out_ft[0]], img, segments, replace_img)[0]
     cf_img_highlight = _seg_to_img([cf_out_ft[0]], img, segments, green_replace)[0]
+    cf_segments = np.where(cf_out_ft[0] == 0)[0]
 
-    return cf_img, cf_img_highlight
+    return cf_img, cf_img_highlight, segments, cf_segments
 
 
-def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace_strategy='antonyms', increase_threshold=-1,
-              it_max=1000, limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000, size_tabu=None,
-              ft_threshold_distance=0.01, has_ohe=False, verbose=False):
+def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace_strategy='antonyms',
+              increase_threshold=-1, it_max=1000, limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000,
+              size_tabu=None, ft_threshold_distance=0.01, has_ohe=False, avoid_back_original=False, verbose=False):
     # Textual predictor must receive an array of texts and output a class between 0 and 1
 
     cf_finder = None
@@ -336,6 +341,7 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
                        increase_threshold=increase_threshold,
                        tabu_list=None,
                        size_tabu=size_tabu,
+                       avoid_back_original=avoid_back_original,
                        verbose=verbose)
 
 
@@ -346,21 +352,22 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
 
     # Fine tune the counterfactual
     cf_out_ft = _fine_tuning(factual=factual.iloc[0],
-                              cf_out=cf_out,
-                              mp1c=mts,
-                              ohe_list=ohe_list,
-                              ohe_indexes=ohe_indexes,
-                              increase_threshold=increase_threshold,
-                              feat_types=feat_types,
-                              ft_change_factor=ft_change_factor,
-                              it_max=it_max,
-                              size_tabu=size_tabu,
-                              ft_it_max=ft_it_max,
-                              ft_threshold_distance=ft_threshold_distance,
-                              time_start=time_start,
-                              limit_seconds=limit_seconds,
-                              cf_finder=cf_finder,
-                              verbose=verbose)
+                             cf_out=cf_out,
+                             mp1c=mts,
+                             ohe_list=ohe_list,
+                             ohe_indexes=ohe_indexes,
+                             increase_threshold=increase_threshold,
+                             feat_types=feat_types,
+                             ft_change_factor=ft_change_factor,
+                             it_max=it_max,
+                             size_tabu=size_tabu,
+                             ft_it_max=ft_it_max,
+                             ft_threshold_distance=ft_threshold_distance,
+                             time_start=time_start,
+                             limit_seconds=limit_seconds,
+                             cf_finder=cf_finder,
+                             avoid_back_original=avoid_back_original,
+                             verbose=verbose)
 
     factual_adjusted = converter([factual])
     converted_output = converter([cf_out_ft[0]])
