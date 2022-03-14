@@ -48,7 +48,7 @@ def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_l
     # Implement a threshold for score increase, this avoids having useless moves
     score_increase = increase_threshold + 1
     # Repeat until max iterations
-    while cf_try_prob <= 0.5 and iterations < 5:
+    while cf_try_prob <= 0.5 and iterations < it_max:
         for n_changes in range(1, 6):
             # Changes
             # For categorical binary
@@ -163,6 +163,8 @@ def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_l
             # This random generation can happen several times
         # Increase momentum
         add_momentum += 1
+        # Count an iteration
+        iterations += 1
 
     return cf_try
 
