@@ -145,7 +145,7 @@ def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy',
 
 def find_image(img, model_predict, segmentation='quickshift', avoid_back_original=True, params_segmentation=None,\
                img_cf_strategy='nonspecific', cf_strategy='greedy', replace_mode='blur', increase_threshold=-1,
-               it_max=1000, limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000, size_tabu=None,
+               it_max=None, limit_seconds=30, ft_change_factor=0.1, ft_it_max=None, size_tabu=None,
                ft_threshold_distance=0.01, has_ohe=False, verbose=False):
     """
 
@@ -167,8 +167,16 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
     cf_finder = None
     if cf_strategy == 'random':
         cf_finder = _random_generator
+        if it_max is None:
+            it_max = 100
+        if ft_it_max is None:
+            ft_it_max = 100
     elif cf_strategy == 'greedy':
         cf_finder = _super_sedc
+        if it_max is None:
+            it_max = 1000
+        if ft_it_max is None:
+            ft_it_max = 1000
     if cf_finder is None:
         raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
 
