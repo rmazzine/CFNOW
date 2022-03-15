@@ -70,6 +70,8 @@ def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy',
     :return: (list) Containing [CF_array, CF_probability, CF_objective_value]
     """
 
+    cf_data_type = 'tabular'
+
     cf_finder = None
     if cf_strategy == 'random':
         cf_finder = _random_generator
@@ -102,7 +104,8 @@ def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy',
     # Generate OHE parameters if it has OHE variables
     ohe_list, ohe_indexes = _get_ohe_params(factual, has_ohe)
     # Generate CF using a CF finder
-    cf_out = cf_finder(factual=factual,
+    cf_out = cf_finder(cf_data_type=cf_data_type,
+                       factual=factual,
                        mp1c=mp1c,
                        feat_types=feat_types,
                        it_max=it_max,
@@ -119,7 +122,8 @@ def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy',
         raise Warning('No CF found')
 
     # Fine tune the counterfactual
-    cf_out_ft = _fine_tuning(factual=factual,
+    cf_out_ft = _fine_tuning(cf_data_type=cf_data_type,
+                             factual=factual,
                              cf_out=cf_out,
                              mp1c=mp1c,
                              ohe_list=ohe_list,
@@ -143,7 +147,7 @@ def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy',
     return cf_out_ft
 
 
-def find_image(img, model_predict, segmentation='quickshift', avoid_back_original=True, params_segmentation=None,\
+def find_image(img, model_predict, segmentation='quickshift', avoid_back_original=None, params_segmentation=None,\
                img_cf_strategy='nonspecific', cf_strategy='greedy', replace_mode='blur', increase_threshold=-1,
                it_max=None, limit_seconds=30, ft_change_factor=0.1, ft_it_max=None, size_tabu=None,
                ft_threshold_distance=0.01, has_ohe=False, verbose=False):
@@ -164,6 +168,8 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
     :return:
     """
 
+    cf_data_type = 'image'
+
     cf_finder = None
     if cf_strategy == 'random':
         cf_finder = _random_generator
@@ -171,12 +177,16 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
             it_max = 100
         if ft_it_max is None:
             ft_it_max = 100
+        if avoid_back_original is None:
+            avoid_back_original = False
     elif cf_strategy == 'greedy':
         cf_finder = _super_sedc
         if it_max is None:
             it_max = 1000
         if ft_it_max is None:
             ft_it_max = 1000
+        if avoid_back_original is None:
+            avoid_back_original = True
     if cf_finder is None:
         raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
 
@@ -246,7 +256,8 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
         raise AttributeError(f'img_cf_strategy must be "nonspecific" or "second_best" and not {img_cf_strategy}')
 
     # Generate CF using a CF finder
-    cf_out = cf_finder(factual=factual,
+    cf_out = cf_finder(cf_data_type=cf_data_type,
+                       factual=factual,
                        mp1c=mimns,
                        feat_types=feat_types,
                        it_max=it_max,
@@ -263,7 +274,8 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
         raise Warning('No CF found')
 
     # Fine tune the counterfactual
-    cf_out_ft = _fine_tuning(factual=factual,
+    cf_out_ft = _fine_tuning(cf_data_type=cf_data_type,
+                             factual=factual,
                              cf_out=cf_out,
                              mp1c=mimns,
                              ohe_list=[],
@@ -292,6 +304,8 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
               increase_threshold=-1, it_max=1000, limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000,
               size_tabu=None, ft_threshold_distance=0.01, has_ohe=False, avoid_back_original=False, verbose=False):
     # Textual predictor must receive an array of texts and output a class between 0 and 1
+
+    cf_data_type = 'text'
 
     cf_finder = None
     if cf_strategy == 'random':
@@ -339,7 +353,8 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
         size_tabu = int(len(ohe_list)/2)
 
     # Generate CF using a CF finder
-    cf_out = cf_finder(factual=factual.iloc[0],
+    cf_out = cf_finder(cf_data_type=cf_data_type,
+                       factual=factual.iloc[0],
                        mp1c=mts,
                        feat_types=feat_types,
                        it_max=it_max,
@@ -359,7 +374,8 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
         return text_input
 
     # Fine tune the counterfactual
-    cf_out_ft = _fine_tuning(factual=factual.iloc[0],
+    cf_out_ft = _fine_tuning(cf_data_type=cf_data_type,
+                             factual=factual.iloc[0],
                              cf_out=cf_out,
                              mp1c=mts,
                              ohe_list=ohe_list,

@@ -1,6 +1,7 @@
 """
 This module has the functions used to find a CF explanation.
 """
+import math
 import copy
 from itertools import combinations
 from collections import deque
@@ -10,8 +11,17 @@ import numpy as np
 from ._data_standardizer import _ohe_detector, _get_ohe_list
 
 
-def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes, increase_threshold,
-                      tabu_list, size_tabu, avoid_back_original, verbose):
+def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
+                      increase_threshold, tabu_list, size_tabu, avoid_back_original, verbose):
+
+    threshold_changes = 2000
+    if cf_data_type == 'tabular':
+        threshold_changes = 2000
+    if cf_data_type == 'image':
+        threshold_changes = 200
+    if cf_data_type == 'text':
+        threshold_changes = 2000
+
     recent_improvements = deque(maxlen=(3))
 
     # Start with a greedy optimization, however, if the changes selected are the same and the score increase
@@ -49,7 +59,7 @@ def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_l
     score_increase = increase_threshold + 1
     # Repeat until max iterations
     while cf_try_prob <= 0.5 and iterations < it_max:
-        for n_changes in range(1, 6):
+        for n_changes in range(1, len(ohe_list)+len(indexes_num)+arr_changes_cat_bin.shape[0]):
             # Changes
             # For categorical binary
             changes_cat_bin = arr_changes_cat_bin * (1 - 2 * cf_try)
@@ -68,31 +78,125 @@ def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_l
             # For numerical down - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
             changes_num_down = -copy.copy(changes_num_up)
 
+            def count_subarray(sa):
+                return sum([len(s) for s in sa])
+
+            # Length for each kind of change
+            len_ccb = len(changes_cat_bin)
+            len_cco = len(changes_cat_ohe)
+            len_cnu = len(changes_num_up)
+            len_cnd = len(changes_num_up)
+
             # Create changes array
             possible_changes = np.concatenate(
                 [c for c in [changes_cat_bin, changes_cat_ohe, changes_num_up, changes_num_down] if len(c) > 0])
 
-            # If the flag to back to original is set, then, remove all changes that make the result back to original values
-            if avoid_back_original:
-                n_same_cf_try = (cf_try == factual).sum()
-                n_same_possible_changes = ((possible_changes + cf_try) == factual[0]).sum(axis=1)
-                idx_same_drop = np.where(n_same_possible_changes >= n_same_cf_try)[0]
-                possible_changes = np.delete(possible_changes, idx_same_drop, axis=0)
+            comb_idx = []
+            # Possible changes index
+            pc_idx_bin = [*range(len_ccb)]
+            pc_idx_ohe = [*range(len_ccb, len_ccb + len_cco)]
+            pc_idx_nup = [*range(len_ccb + len_cco, len_ccb + len_cco + len_cnu)]
+            pc_idx_ndw = [*range(len_ccb + len_cco + len_cnu, len_ccb + len_cco + len_cnu + len_cnd)]
 
-            # # New variables
-            # n_changes = 1
-            # limit_random_array = 10000
+            # If less than the threshold, calculate all possibilities
+            idx_comb_changes = []
+            ohe_placeholders = [f'ohe_{x}' for x in range(len(ohe_list))]
+            ohe_placeholder_to_change_idx = {f'ohe_{x}': [count_subarray(ohe_list[0:x]), count_subarray(ohe_list[0:x])+ count_subarray(ohe_list[x:x+1])]  for x in range(len(ohe_list))}
+            num_placeholders = [f'num_{x}' for x in range(len(changes_num_up))]
+            num_placeholder_to_change_idx = {f'num_{x}': x for x in range(len(changes_num_up))}
 
-            # This is the number of combinations possible
-            n_comb = np.prod([*range(len(factual) + 1 - n_changes, len(factual) + 1)])
+            change_feat_options = pc_idx_bin+num_placeholders+ohe_placeholders
 
-            # If the number of combinations is lower than the threshold, create a list of modifications
-            if n_comb < len(factual) * 2 and n_comb < 20000:
-                index_comb = [x for x in combinations([*range(len(possible_changes))], n_changes)]
-            elif len(factual) * 2 < 20000:
-                index_comb = np.random.randint(0, len(possible_changes), (len(factual) * 2, n_changes))
+            n_comb_base = math.comb(len(change_feat_options), n_changes)
+
+            # If the base is larger than 2000, then, the corrected will be larger than 2000
+            if n_comb_base <= threshold_changes:
+                idx_comb_changes = [*combinations(change_feat_options, n_changes)]
+                corrected_num_changes = 0
+                for icc in idx_comb_changes:
+                    comb_rows = [1]
+                    for ohp in ohe_placeholders:
+                        if ohp in icc:
+                            idx_ohe_min, idx_ohe_max = ohe_placeholder_to_change_idx[ohp]
+                            comb_rows.append(idx_ohe_max - idx_ohe_min)
+                    for nmp in num_placeholders:
+                        if nmp in icc:
+                            comb_rows.append(2)
+                    corrected_num_changes += np.prod(comb_rows)
             else:
-                index_comb = np.random.randint(0, len(possible_changes), (20000, n_changes))
+                # Calculate the sample
+                corrected_num_changes = threshold_changes + 1
+
+            if corrected_num_changes <= threshold_changes:
+                # There are few modifications, calculate all combinations
+                idx_comb_changes = [*combinations(change_feat_options, n_changes)]
+
+                # Now, fix OHE placeholders
+                update_placeholder = [list(icc) for icc in idx_comb_changes]
+                for ohp in ohe_placeholders:
+                    updating_placeholder = []
+                    # For each index combination changes in the update placeholder variable
+                    for icc in update_placeholder:
+                        if ohp in icc:
+                            ohp_indexes = ohe_placeholder_to_change_idx[ohp]
+                            icc_ohp_index = icc.index(ohp)
+                            for ohp_idx in pc_idx_ohe[ohp_indexes[0]:ohp_indexes[1]]:
+                                base_icc_ohp = copy.copy(icc)
+                                base_icc_ohp[icc_ohp_index] = ohp_idx
+                                updating_placeholder.append(base_icc_ohp)
+                        else:
+                            updating_placeholder.append(icc)
+                    # Update for next iteration
+                    update_placeholder = updating_placeholder
+
+                for nmp in num_placeholders:
+                    updating_placeholder = []
+                    # For each index combination changes in the update placeholder variable
+                    for icc in update_placeholder:
+                        if nmp in icc:
+                            nmp_index = num_placeholder_to_change_idx[nmp]
+                            icc_nmp_index = icc.index(nmp)
+
+                            icc_nmp_up = copy.copy(icc)
+                            icc_nmp_dw = copy.copy(icc)
+
+                            icc_nmp_up[icc_nmp_index] = pc_idx_nup[nmp_index]
+                            icc_nmp_dw[icc_nmp_index] = pc_idx_ndw[nmp_index]
+
+                            updating_placeholder.extend([icc_nmp_up, icc_nmp_dw])
+                        else:
+                            updating_placeholder.append(icc)
+                    # Update for next iteration
+                    update_placeholder = updating_placeholder
+
+                changes_idx = update_placeholder
+
+            else:
+                # Make a sample of the possible modifications
+                changes_idx = []
+                tries_gen = 1
+                while len(changes_idx) < threshold_changes and tries_gen < threshold_changes*2:
+                    sample_features = np.random.choice(change_feat_options, n_changes)
+                    change_idx_row = []
+                    for sf in sample_features:
+                        if sf in ohe_placeholders:
+                            ohp_indexes = ohe_placeholder_to_change_idx[sf]
+                            change_idx_row.append(np.random.choice(pc_idx_ohe[ohp_indexes[0]:ohp_indexes[1]], 1)[0])
+                        elif sf in num_placeholders:
+                            nmp_index = num_placeholder_to_change_idx[sf]
+                            change_idx_row.append(np.random.choice([pc_idx_nup[nmp_index], pc_idx_ndw[nmp_index]]))
+                        else:
+                            change_idx_row.append(sf)
+                    set_change_idx_row = set(change_idx_row)
+                    tries_gen += 1
+                    if set_change_idx_row not in changes_idx:
+                        changes_idx.append(set_change_idx_row)
+
+                changes_idx = [list(c) for c in changes_idx]
+
+            # Skip to next iteration
+            if len(changes_idx) == 0:
+                continue
 
             # # If the number of combinations is lower than the threshold, create a list of modifications
             # if (n_comb) < 20000:
@@ -101,7 +205,7 @@ def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_l
             #     index_comb = np.random.randint(0, len(possible_changes), (50000, n_changes))
 
             # The if avoids OHE being incorrectly summed (we can not sum the change of two OHE in the same category)
-            random_changes = np.array([np.sum(possible_changes[r, :], axis=0) for r in index_comb if
+            random_changes = np.array([np.sum(possible_changes[r, :], axis=0) for r in changes_idx if
                                        sum([_ohe_detector(r, ic) for ic in ohe_list]) == 0])
 
             # If there are no random changes, return best result
@@ -161,16 +265,19 @@ def _random_generator(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_l
             # If yes return and do not try again, since it will give a higher modified CF
 
             # This random generation can happen several times
+
+            # If the score changed, break the loop
+            if cf_try_prob >= 0.5:
+                break
         # Increase momentum
         add_momentum += 1
         # Count an iteration
         iterations += 1
-
     return cf_try
 
 
-def _super_sedc(factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes, increase_threshold,
-                tabu_list, size_tabu, avoid_back_original, verbose):
+def _super_sedc(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
+                increase_threshold, tabu_list, size_tabu, avoid_back_original, verbose):
     recent_improvements = deque(maxlen=(3))
 
     # Start with a greedy optimization, however, if the changes selected are the same and the score increase

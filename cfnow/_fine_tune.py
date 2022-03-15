@@ -14,9 +14,9 @@ from ._data_standardizer import _get_ohe_list
 from ._obj_functions import _obj_manhattan
 
 
-def _fine_tuning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types, ft_change_factor,
-                 it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds, cf_finder,
-                 avoid_back_original, verbose):
+def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types,
+                 ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds,
+                 cf_finder, avoid_back_original, verbose):
     feat_idx_to_name = pd.Series(factual.index).to_dict()
     feat_idx_to_type = lambda x: feat_types[feat_idx_to_name[x]]
 
@@ -145,7 +145,8 @@ def _fine_tuning(factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshol
                 tabu_list.append([change_original_idx])
 
             # Return to CF, however, considering the Tabu list
-            c_cf = cf_finder(factual=pd.DataFrame([c_cf], columns=factual.index).iloc[0],
+            c_cf = cf_finder(cf_data_type=cf_data_type,
+                             factual=pd.DataFrame([c_cf], columns=factual.index).iloc[0],
                              mp1c=mp1c,
                              feat_types=feat_types,
                              it_max=it_max,
