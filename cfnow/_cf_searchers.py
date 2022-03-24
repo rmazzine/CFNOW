@@ -192,7 +192,7 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
                     if set_change_idx_row not in changes_idx:
                         changes_idx.append(set_change_idx_row)
 
-                changes_idx = [list(c) for c in changes_idx]
+                changes_idx = [[int(ci) for ci in c] for c in changes_idx]
 
             # Skip to next iteration
             if len(changes_idx) == 0:
