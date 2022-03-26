@@ -116,6 +116,8 @@ def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy',
                        tabu_list=None,
                        size_tabu=size_tabu,
                        avoid_back_original=avoid_back_original,
+                       ft_time=None,
+                       ft_time_limit=None,
                        verbose=verbose)
 
     if mp1c(np.array([cf_out]))[0] < 0.5:
@@ -268,6 +270,8 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
                        tabu_list=None,
                        avoid_back_original=avoid_back_original,
                        size_tabu=size_tabu,
+                       ft_time=None,
+                       ft_time_limit=None,
                        verbose=verbose)
 
     if mimns(np.array([cf_out]))[0] < 0.5:
@@ -365,6 +369,8 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
                        tabu_list=None,
                        size_tabu=size_tabu,
                        avoid_back_original=avoid_back_original,
+                       ft_time=None,
+                       ft_time_limit=None,
                        verbose=verbose)
 
 

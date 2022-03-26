@@ -3,8 +3,9 @@ This module has the functions used to find a CF explanation.
 """
 import math
 import copy
-from itertools import combinations
 from collections import deque
+from datetime import datetime
+from itertools import combinations
 
 import numpy as np
 
@@ -12,7 +13,7 @@ from ._data_standardizer import _ohe_detector, _get_ohe_list
 
 
 def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-                      increase_threshold, tabu_list, size_tabu, avoid_back_original, verbose):
+                      increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose):
 
     threshold_changes = 2000
     if cf_data_type == 'tabular':
@@ -273,11 +274,15 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
         add_momentum += 1
         # Count an iteration
         iterations += 1
+        # Check time for fine tuning
+        if ft_time is not None:
+            if (datetime.now() - ft_time).total_seconds() >= ft_time_limit:
+                return cf_try
     return cf_try
 
 
 def _super_sedc(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-                increase_threshold, tabu_list, size_tabu, avoid_back_original, verbose):
+                increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose):
     recent_improvements = deque(maxlen=(3))
 
     # Start with a greedy optimization, however, if the changes selected are the same and the score increase
@@ -415,5 +420,9 @@ def _super_sedc(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_facto
 
         # Update number of tries
         iterations += 1
+        # Check time for fine tuning
+        if ft_time is not None:
+            if (datetime.now() - ft_time).total_seconds() >= ft_time_limit:
+                return cf_try
 
     return cf_try

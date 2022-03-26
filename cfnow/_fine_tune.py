@@ -157,6 +157,8 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
                              size_tabu=size_tabu,
                              increase_threshold=increase_threshold,
                              avoid_back_original=avoid_back_original,
+                             ft_time=time_start,
+                             ft_time_limit=limit_seconds,
                              verbose=verbose)
 
     return best_solution
