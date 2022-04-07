@@ -27,6 +27,9 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
     # Get all feature types
     all_feat_types = list(set(feat_types.values()))
 
+    # Get len of OHE features
+    len_ohe = len([item for sublist in ohe_list for item in sublist])
+
     # Create array to store the best solution
     # It has: the VALID CF, the CF score and the objective function  (L1 distance)
     best_solution = [copy.copy(cf_out), mp1c(np.array([cf_out]))[0], _obj_manhattan(factual_np, cf_out)]
@@ -42,6 +45,11 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
         # If all categorical and distance is 1, then, it's the best optimized solution, return result
         if len(all_feat_types) == 1 and all_feat_types[0] == 'cat':
             if _obj_manhattan(factual_np, c_cf) == 1:
+                return best_solution
+
+        # If all OHE and the distance is 2, then, it's the best optimized solution, return result
+        if len(all_feat_types) == 1 and len_ohe == len(factual_np):
+            if _obj_manhattan(factual_np, c_cf) == 2:
                 return best_solution
 
         # Check time limit
