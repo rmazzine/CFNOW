@@ -1,6 +1,7 @@
 """
 This module has functions which gets information about the factual data and standardize to the CF generator.
 """
+import re
 import copy
 import pickle
 from collections import defaultdict
@@ -54,6 +55,25 @@ def _seg_to_img(seg_arr, img, segments, replace_img):
             replace_img * np.stack((mask_replace, mask_replace, mask_replace), axis=-1))
 
     return converted_imgs
+
+
+def _untokenize(words):
+    """
+    Untokenizing a text undoes the tokenizing operation, restoring
+    punctuation and spaces to the places that people expect them to be.
+    Ideally, `untokenize(tokenize(text))` should be identical to `text`,
+    except for line breaks.
+    """
+    text = ' '.join(words)
+    step1 = text.replace("`` ", '"').replace(" ''", '"').replace('. . .',  '...')
+    step2 = step1.replace(" ( ", " (").replace(" ) ", ") ")
+    step3 = re.sub(r' ([.,:;?!%]+)([ \'"`])', r"\1\2", step2)
+    step4 = re.sub(r' ([.,:;?!%]+)$', r"\1", step3)
+    step5 = step4.replace(" '", "'").replace(" n't", "n't").replace(
+         "can not", "cannot")
+    step6 = step5.replace(" ` ", " '")
+    return step6.strip()
+
 
 def _get_antonyms(word, pos):
     antonyms = []
@@ -190,7 +210,7 @@ def _change_vector_to_text(input_change_vector, text_words, change_vector, text_
         if idx_c != 0:
             out_texts[i_text][idx_w] = text_antonyms[idx_w][idx_c]
 
-    out_full_texts = [' '.join(t) for t in out_texts]
+    out_full_texts = [_untokenize(t) for t in out_texts]
 
     return out_full_texts
 
