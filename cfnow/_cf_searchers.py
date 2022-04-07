@@ -21,7 +21,7 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
     if cf_data_type == 'image':
         threshold_changes = 200
     if cf_data_type == 'text':
-        threshold_changes = 2000
+        threshold_changes = 500
 
     recent_improvements = deque(maxlen=(3))
 
