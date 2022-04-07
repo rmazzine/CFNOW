@@ -147,9 +147,19 @@ def _get_antonyms(word, pos):
 
 
 def _text_to_change_vector(text):
-    nltk.download('punkt')
-    nltk.download('wordnet')
-    nltk.download('omw-1.4')
+    # Verify and download NLTK packages
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt')
+    try:
+        nltk.data.find('corpora/wordnet')
+    except LookupError:
+        nltk.download('wordnet')
+    try:
+        nltk.data.find('corpora/omw-1.4')
+    except LookupError:
+        nltk.download('omw-1.4')
 
     # First, make text lowercase
     text = text.lower()
