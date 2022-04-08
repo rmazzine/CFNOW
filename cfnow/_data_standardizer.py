@@ -160,6 +160,10 @@ def _text_to_change_vector(text):
         nltk.data.find('corpora/omw-1.4')
     except LookupError:
         nltk.download('omw-1.4')
+    try:
+        nltk.data.find('taggers/averaged_perceptron_tagger')
+    except:
+        nltk.download('averaged_perceptron_tagger')
 
     # First, make text lowercase
     text = text.lower()
