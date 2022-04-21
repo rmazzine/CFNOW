@@ -11,7 +11,8 @@ import cv2
 
 from ._cf_searchers import _random_generator, _super_sedc
 from ._checkers import _check_factual, _check_vars, _check_prob_func
-from ._data_standardizer import _get_ohe_params, _seg_to_img, _text_to_change_vector, _convert_change_vectors_func
+from ._data_standardizer import _get_ohe_params, _seg_to_img, _text_to_change_vector, _text_to_token_vector, \
+    _convert_change_vectors_func
 from ._fine_tune import _fine_tuning
 from ._model_standardizer import _standardize_predictor, _adjust_model_class, _adjust_image_model, \
     _adjust_image_multiclass_nonspecific, _adjust_image_multiclass_second_best, _adjust_textual_classifier
@@ -304,7 +305,7 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
     return cf_img, cf_img_highlight, segments, cf_segments
 
 
-def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace_strategy='antonyms',
+def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace_strategy='remove',
               increase_threshold=-1, it_max=1000, limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000,
               size_tabu=None, ft_threshold_distance=0.01, has_ohe=False, avoid_back_original=False, verbose=False):
     # Textual predictor must receive an array of texts and output a class between 0 and 1
@@ -325,9 +326,13 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
     # TODO: Make checkers
 
     # Define type of word replacement strategy
-    if word_replace_strategy == 'antonyms':
-        text_words, change_vector, text_antonyms = _text_to_change_vector(text_input)
-        converter = _convert_change_vectors_func(text_words, change_vector, text_antonyms)
+    if word_replace_strategy == 'remove':
+        text_words, change_vector, text_replace = _text_to_token_vector(text_input)
+        converter = _convert_change_vectors_func(text_words, change_vector, text_replace)
+        factual = copy.copy(change_vector)
+    elif word_replace_strategy == 'antonyms':
+        text_words, change_vector, text_replace = _text_to_change_vector(text_input)
+        converter = _convert_change_vectors_func(text_words, change_vector, text_replace)
         factual = copy.copy(change_vector)
     else:
         raise AttributeError(f'word_replace_strategy must be "antonyms" and not {word_replace_strategy}')
@@ -377,7 +382,7 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
     # If no CF was found, return original text, since this may be common, it will not raise errors
     if mts(np.array([cf_out]))[0] < 0.5:
         print('No CF found')
-        return text_input
+        return text_input, text_input, factual, factual
 
     # Fine tune the counterfactual
     cf_out_ft = _fine_tuning(cf_data_type=cf_data_type,
@@ -402,4 +407,4 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
     factual_adjusted = converter([factual])
     converted_output = converter([cf_out_ft[0]])
 
-    return factual_adjusted[0], converted_output[0]
+    return factual_adjusted[0], converted_output[0], factual, cf_out_ft[0]

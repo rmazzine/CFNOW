@@ -146,6 +146,37 @@ def _get_antonyms(word, pos):
     return antonyms
 
 
+def _text_to_token_vector(text):
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt')
+
+    # Then get phrase tokens, replace ' with \\ to preserve contracted words
+    text_words = nltk.word_tokenize(text.replace("'", "\\"))
+    # Go back and replace \\ to '
+    text_words = [w.replace("\\", "'") for w in text_words]
+
+    # Create a substitution list for all identifiable words (excluding the special characters)
+    text_replace_word = [[w, ''] if len(re.sub('[^A-Za-z0-9]+', '', w)) > 0 else [] for w in text_words]
+
+    # This is a dictionary which keys are the original word position and values are the possible replacement
+    change_vector_links = {idx: [*range(len(subs))] for idx, subs in enumerate(text_replace_word) if len(subs) > 0}
+
+    # Now create the DataFrame representation
+    # Create factual row values
+    # Create column names
+    factual_row = []
+    factual_col = []
+    for change_key, replace_idx in change_vector_links.items():
+        factual_row.extend([1] + [0] * (len(replace_idx) - 1))
+        factual_col.extend([f'{change_key}_{r}' for r in replace_idx])
+
+    change_vector = pd.DataFrame([dict(zip(factual_col, factual_row))])
+
+    return text_words, change_vector, text_replace_word
+
+
 def _text_to_change_vector(text):
     # Verify and download NLTK packages
     try:
