@@ -178,6 +178,12 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
                 tries_gen = 1
                 while len(changes_idx) < threshold_changes and tries_gen < threshold_changes*2:
                     sample_features = np.random.choice(change_feat_options, n_changes)
+                    # OHE and binary cannot be selected two times
+                    # Then, considering the set of changes without num_, the set must be the same size of the list
+                    sample_features_not_num = [sf for sf in sample_features if 'num_' not in sf]
+                    if len(set(sample_features_not_num)) != len(sample_features_not_num):
+                        continue
+
                     change_idx_row = []
                     for sf in sample_features:
                         if sf in ohe_placeholders:
