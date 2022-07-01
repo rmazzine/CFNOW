@@ -222,7 +222,7 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
 
                     # OHE and binary cannot be selected two times
                     # Then, considering the set of changes without num_, the set must be the same size of the list
-                    sample_features_not_num = [sf for sf in sample_features if 'num_' not in sf]
+                    sample_features_not_num = [sf for sf in sample_features if 'num_' not in str(sf)]
                     if len(set(sample_features_not_num)) != len(sample_features_not_num):
                         continue
 
