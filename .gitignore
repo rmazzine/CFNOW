@@ -1,5 +1,6 @@
 Datasets/
 Models/
+Results/
 
 # Internal test scripts
 .test_*.py
