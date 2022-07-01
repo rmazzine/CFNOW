@@ -17,9 +17,15 @@ with open('./cfnow/assets/verb_tenses.pkl', 'rb') as handle:
 
 
 def _get_ohe_params(factual, has_ohe):
+    """
+    Find the group of columns related to a OHE enconding and their respective indexes
+    :param factual: The factual point
+    :param has_ohe: If True, it will try to get OHE information
+    :return: (list) The first list has the groups of columns related to the OHE features while the second list has
+    the index of all OHE encoded features
+    """
     ohe_list = []
     ohe_indexes = []
-    # if has_ohe:
     if has_ohe:
         prefix_to_class = defaultdict(list)
         for col_idx, col_name in enumerate(factual.index):
@@ -44,7 +50,7 @@ def _get_ohe_list(f_idx, ohe_list):
 
 
 def _seg_to_img(seg_arr, img, segments, replace_img):
-    # Get's a segmentation code and transforms to image data
+    # Gets a segmentation code and transforms to image data
 
     converted_imgs = []
     for seg in seg_arr:
@@ -261,5 +267,5 @@ def _change_vector_to_text(input_change_vector, text_words, change_vector, text_
 
 
 def _convert_change_vectors_func(text_words, change_vector, text_antonyms):
-
-    return lambda input_change_vector : _change_vector_to_text(input_change_vector, text_words, change_vector, text_antonyms)
+    return lambda input_change_vector : _change_vector_to_text(
+        input_change_vector, text_words, change_vector, text_antonyms)
