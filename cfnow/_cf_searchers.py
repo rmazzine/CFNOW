@@ -1,5 +1,12 @@
 """
 This module has the functions used to find a CF explanation.
+
+* For Categorical (binary) there's only one change, flipping 0->1 or 1->0
+
+* For Categorical (OHE) there's a complex change, which considers flipping two binaries
+
+* For Numerical we can increase or decrease the feature according
+to ft_change_factor and momentum (feature*ft_change_factor + momentum)
 """
 import math
 import copy
@@ -14,6 +21,27 @@ from ._data_standardizer import _ohe_detector, _get_ohe_list
 
 def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
                       increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose):
+    """
+    This algorithm takes a random strategy to find a minimal set of changes which change the classification prediction
+
+    :param cf_data_type: Type of data
+    :param factual: The factual point
+    :param mp1c: The predictor function wrapped in a predictable way
+    :param feat_types: The type for each feature
+    :param it_max: Maximum number of iterations
+    :param ft_change_factor: Proportion of numerical feature to be used in their modification
+    :param ohe_list: List of OHE features
+    :param ohe_indexes: List of OHE indexes
+    :param increase_threshold: NOT USED FOR RANDOM STRATEGY, since the momentum increase happens after one full
+    run over features
+    :param tabu_list: List of features forbidden to be modified
+    :param size_tabu: Size of Tabu list
+    :param avoid_back_original: NOT USED FOR RANDOM STRATEGY
+    :param ft_time: If it's in the fine-tune process, tells the current fine-tune time
+    :param ft_time_limit: The time limit for fine-tune
+    :param verbose: Gives additional information about the process if true
+    :return: A counterfactual or the best try to achieve it
+    """
 
     threshold_changes = 2000
     if cf_data_type == 'tabular':
@@ -23,24 +51,13 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
     if cf_data_type == 'text':
         threshold_changes = 500
 
-    recent_improvements = deque(maxlen=(3))
-
-    # Start with a greedy optimization, however, if the changes selected are the same and the score increase
-    # is not good, start Tabu list
-    activate_tabu = False
-
     # Additional momentum to avoid being stuck in a minimum, starts with zero, however, if Tabu list is activated
     # and changes are not big, activate it
     add_momentum = 0
 
-    # If tabu_list is None, then, disconsider it assigning an empty list
+    # If tabu_list is None, then, not consider it assigning an empty list
     if tabu_list is None:
         tabu_list = deque(maxlen=(size_tabu))
-
-    # For Categorical (binary) there's only one change, flipping 0->1 or 1->0
-    # For Categorical (OHE) there's a complex change, which considers
-    # flipping two binaries
-    # For Numerical we can increase 50% of input or decrease 50%
 
     # Define the cf try
     cf_try = copy.copy(factual).to_numpy()
@@ -49,21 +66,23 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
     indexes_cat = np.where(np.isin(factual.index, [c for c, t in feat_types.items() if t == 'cat']))[0]
     indexes_num = sorted(list(set([*range(len(factual))]) - set(indexes_cat.tolist())))
 
-    # Create identity matrixes for each type of variable
+    # Create identity matrix for each type of variable
     arr_changes_cat_bin = np.eye(len(factual))[list(set(indexes_cat) - set(ohe_indexes))]
     arr_changes_cat_ohe = np.eye(len(factual))
     arr_changes_num = np.eye(len(factual))[indexes_num]
 
     iterations = 1
     cf_try_prob = mp1c(factual.to_frame().T)[0]
-    # Implement a threshold for score increase, this avoids having useless moves
-    score_increase = increase_threshold + 1
-    # Repeat until max iterations
+
+    # Repeat until max iterations or a CF is found
     while cf_try_prob <= 0.5 and iterations < it_max:
+        # Each iteration will run from 1 to total number of features
         for n_changes in range(1, len(ohe_list)+len(indexes_num)+arr_changes_cat_bin.shape[0]):
-            # Changes
+
+            # Create changes
             # For categorical binary
             changes_cat_bin = arr_changes_cat_bin * (1 - 2 * cf_try)
+
             # For categorical ohe
             changes_cat_ohe_list = []
             for ohe_group in ohe_list:
@@ -79,7 +98,7 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
             # For numerical down - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
             changes_num_down = -copy.copy(changes_num_up)
 
-            def count_subarray(sa):
+            def _count_subarray(sa):
                 return sum([len(s) for s in sa])
 
             # Length for each kind of change
@@ -92,25 +111,33 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
             possible_changes = np.concatenate(
                 [c for c in [changes_cat_bin, changes_cat_ohe, changes_num_up, changes_num_down] if len(c) > 0])
 
-            comb_idx = []
             # Possible changes index
             pc_idx_bin = [*range(len_ccb)]
             pc_idx_ohe = [*range(len_ccb, len_ccb + len_cco)]
             pc_idx_nup = [*range(len_ccb + len_cco, len_ccb + len_cco + len_cnu)]
             pc_idx_ndw = [*range(len_ccb + len_cco + len_cnu, len_ccb + len_cco + len_cnu + len_cnd)]
 
-            # If less than the threshold, calculate all possibilities
-            idx_comb_changes = []
+            # OHE and numerical are special types of feature change since for a same feature, they have multiple
+            # possible modifications, then, placeholder codes are created to identify them (binary is not necessary
+            # since the change is only one possible 1 to 0 or 0 to 1)
             ohe_placeholders = [f'ohe_{x}' for x in range(len(ohe_list))]
-            ohe_placeholder_to_change_idx = {f'ohe_{x}': [count_subarray(ohe_list[0:x]), count_subarray(ohe_list[0:x])+ count_subarray(ohe_list[x:x+1])]  for x in range(len(ohe_list))}
+            ohe_placeholder_to_change_idx = {
+                f'ohe_{x}':
+                    [_count_subarray(ohe_list[0:x]), _count_subarray(ohe_list[0:x])+_count_subarray(ohe_list[x:x+1])]
+                for x in range(len(ohe_list))}
             num_placeholders = [f'num_{x}' for x in range(len(changes_num_up))]
             num_placeholder_to_change_idx = {f'num_{x}': x for x in range(len(changes_num_up))}
 
+            # All possible changes
             change_feat_options = pc_idx_bin+num_placeholders+ohe_placeholders
 
+            # Calculate the number of possible change combinations
             n_comb_base = math.comb(len(change_feat_options), n_changes)
 
-            # If the base is larger than 2000, then, the corrected will be larger than 2000
+            # The number of possible modifications can be larger than the previous calculated, since for each OHE
+            # and numerical feature, there are more than one possible change (for OHE depends on the feature values and
+            # for numerical can be up or down). Therefore, if the number of combinations is below the threshold,
+            # these situations must be checked to have a precise calculation of the possible modifications number.
             if n_comb_base <= threshold_changes:
                 idx_comb_changes = [*combinations(change_feat_options, n_changes)]
                 corrected_num_changes = 0
@@ -125,14 +152,16 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
                             comb_rows.append(2)
                     corrected_num_changes += np.prod(comb_rows)
             else:
-                # Calculate the sample
+                # The sample will be 1 above the limit threshold
                 corrected_num_changes = threshold_changes + 1
 
             if corrected_num_changes <= threshold_changes:
-                # There are few modifications, calculate all combinations
+                # In this case, there are few modifications, so we will calculate all combinations
+
+                # Calculate all possible combinations
                 idx_comb_changes = [*combinations(change_feat_options, n_changes)]
 
-                # Now, fix OHE placeholders
+                # Now, each time a OHE feature is modified, consider all possible modifications
                 update_placeholder = [list(icc) for icc in idx_comb_changes]
                 for ohp in ohe_placeholders:
                     updating_placeholder = []
@@ -150,6 +179,7 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
                     # Update for next iteration
                     update_placeholder = updating_placeholder
 
+                # For each numerical feature changed, add the two possible modifications (increase and decrease)
                 for nmp in num_placeholders:
                     updating_placeholder = []
                     # For each index combination changes in the update placeholder variable
@@ -173,17 +203,30 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
                 changes_idx = update_placeholder
 
             else:
-                # Make a sample of the possible modifications
+                # If the number of possible changes is larger than the threshold, then make a sample (threshold+1)
+                # of possible modifications
+
+                # This array will receive the modifications
                 changes_idx = []
+
+                # Some suggested changes can be invalid because they are repeated or select the same OHE and numerical
+                # features two times, therefore, we define the variable below to give chances to repeat the generation
+                # process trying to get a different change set
                 tries_gen = 1
+
+                # While the number of changes is not equal to sample size and the number of tries
+                # (to generate unique change sets) was not reached
                 while len(changes_idx) < threshold_changes and tries_gen < threshold_changes*2:
+                    # TODO: Change the choice process to not take the same numeric of OHE feature two times
                     sample_features = np.random.choice(change_feat_options, n_changes)
+
                     # OHE and binary cannot be selected two times
                     # Then, considering the set of changes without num_, the set must be the same size of the list
                     sample_features_not_num = [sf for sf in sample_features if 'num_' not in sf]
                     if len(set(sample_features_not_num)) != len(sample_features_not_num):
                         continue
 
+                    # Create modifications for OHE, numerical and binary features
                     change_idx_row = []
                     for sf in sample_features:
                         if sf in ohe_placeholders:
@@ -201,17 +244,12 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
 
                 changes_idx = [[int(ci) for ci in c] for c in changes_idx]
 
-            # Skip to next iteration
+            # If the number of changes is 0, skip to next iteration
             if len(changes_idx) == 0:
                 continue
 
-            # # If the number of combinations is lower than the threshold, create a list of modifications
-            # if (n_comb) < 20000:
-            #     index_comb = [x for x in combinations([*range(len(possible_changes))], n_changes)]
-            # else:
-            #     index_comb = np.random.randint(0, len(possible_changes), (50000, n_changes))
-
-            # The if avoids OHE being incorrectly summed (we can not sum the change of two OHE in the same category)
+            # Below ensures OHE will not be incorrectly summed
+            # (we cannot sum the change of two OHE in the same category)
             random_changes = np.array([np.sum(possible_changes[r, :], axis=0) for r in changes_idx if
                                        sum([_ohe_detector(r, ic) for ic in ohe_list]) == 0])
 
@@ -221,15 +259,12 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
 
             # if the Tabu list is larger than zero
             if len(tabu_list) > 0:
-                # Remove all rows which the sum of absolute change vector
-                # partition is larger than zero
-
-                # Flatten indexes
+                # Remove all rows which the sum of absolute change vector partition is larger than zero
                 forbidden_indexes = [item for sublist in tabu_list for item in sublist]
                 idx_to_remove = np.where(np.abs(random_changes[:, forbidden_indexes]) != 0)[0]
                 random_changes = np.delete(random_changes, idx_to_remove, axis=0)
 
-            # If after removing, there's no changes, return
+            # If, after removing, there's no changes, return CF
             if len(random_changes) == 0:
                 return cf_try
 
@@ -250,37 +285,25 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
 
             # Update the score
             cf_try_prob = mp1c(np.array([cf_try]))[0]
+
+            # Basic verbose report
             if verbose:
                 print(f'SEDC probability {cf_try_prob}')
 
             # Calculate how much the score got better
             score_increase.append(cf_try_prob)
 
-            # The change array will be mixed randomly from 1 to n
-            # Create a zero matrix
-            # However, allow all combinations up to a number
-            # Create a random matrix with numbers up to the number of columns  np.random.randint(0,10, (10,10))
-            # Add the row offset for each column
-            # Those are the indexes that must be replaced by 1
-
-            # This can be obtained with a multiplication
-
-            # Then apply
-
-            # search for any CF
-
-            # If yes return and do not try again, since it will give a higher modified CF
-
-            # This random generation can happen several times
-
             # If the score changed, break the loop
             if cf_try_prob >= 0.5:
                 break
-        # Increase momentum
+
+        # After a full iteration over all features, increase momentum
         add_momentum += 1
+
         # Count an iteration
         iterations += 1
-        # Check time for fine tuning
+
+        # Check time for fine-tune
         if ft_time is not None:
             if (datetime.now() - ft_time).total_seconds() >= ft_time_limit:
                 return cf_try
@@ -289,6 +312,29 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
 
 def _super_sedc(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
                 increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose):
+    """
+        This algorithm makes sequential changes which will better increase the score to find a CF
+
+        :param cf_data_type: NOT USED FOR GREEDY STRATEGY
+        :param factual: The factual point
+        :param mp1c: The predictor function wrapped in a predictable way
+        :param feat_types: The type for each feature
+        :param it_max: Maximum number of iterations
+        :param ft_change_factor: Proportion of numerical feature to be used in their modification
+        :param ohe_list: List of OHE features
+        :param ohe_indexes: List of OHE indexes
+        :param increase_threshold: The threshold in score which, if not higher,
+        will count to activate Tabu and Momentum
+        :param tabu_list: List of features forbidden to be modified
+        :param size_tabu: Size of Tabu list
+        :param avoid_back_original: If active, does not allow features going back to their original values
+        :param ft_time: If it's in the fine-tune process, tells the current fine-tune time
+        :param ft_time_limit: The time limit for fine-tune
+        :param verbose: Gives additional information about the process if true
+        :return: A counterfactual or the best try to achieve it
+        """
+
+    # Deque list to track if recent improvements were enough (larger than the increase_threshold)
     recent_improvements = deque(maxlen=(3))
 
     # Start with a greedy optimization, however, if the changes selected are the same and the score increase
@@ -299,14 +345,9 @@ def _super_sedc(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_facto
     # and changes are not big, activate it
     add_momentum = 0
 
-    # If tabu_list is None, then, disconsider it assigning an empty list
+    # If tabu_list is None, then, not consider it assigning an empty list
     if tabu_list is None:
         tabu_list = deque(maxlen=(size_tabu))
-
-    # For Categorical (binary) there's only one change, flipping 0->1 or 1->0
-    # For Categorical (OHE) there's a complex change, which considers
-    # flipping two binaries
-    # For Numerical we can increase 50% of input or decrease 50%
 
     # Define the cf try
     cf_try = copy.copy(factual).to_numpy()
@@ -315,22 +356,30 @@ def _super_sedc(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_facto
     indexes_cat = np.where(np.isin(factual.index, [c for c, t in feat_types.items() if t == 'cat']))[0]
     indexes_num = sorted(list(set([*range(len(factual))]) - set(indexes_cat.tolist())))
 
-    # Create identity matrixes for each type of variable
+    # Create identity matrix for each type of variable
     arr_changes_cat_bin = np.eye(len(factual))[list(set(indexes_cat) - set(ohe_indexes))]
     arr_changes_cat_ohe = np.eye(len(factual))
     arr_changes_num = np.eye(len(factual))[indexes_num]
 
     iterations = 1
+
     cf_try_prob = mp1c(factual.to_frame().T)[0]
+
     # Implement a threshold for score increase, this avoids having useless moves
+    # Before entering to the loop, define it being larger than the threshold
     score_increase = increase_threshold + 1
+
     # Repeat until max iterations
-    # The third condition (limit threshold) should only be applied if the Tabu is not activated
-    # since the activation of Tabu can lead to decrease in score and it's normal
-    while cf_try_prob <= 0.5 and iterations < it_max and ((score_increase >= increase_threshold) if not activate_tabu else True):
-        # Changes
+    # The third condition (score threshold) should only be applied if the Tabu is not activated
+    # since the activation of Tabu can lead to decrease in score, and it's normal
+    while cf_try_prob <= 0.5 and iterations < it_max and \
+            ((score_increase >= increase_threshold) if not activate_tabu else True):
+
+        # Make changes
+
         # For categorical binary
         changes_cat_bin = arr_changes_cat_bin * (1 - 2 * cf_try)
+
         # For categorical ohe
         changes_cat_ohe_list = []
         for ohe_group in ohe_list:
@@ -391,9 +440,10 @@ def _super_sedc(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_facto
 
         # Update the score
         cf_try_prob = mp1c(np.array([cf_try]))[0]
+
+        # Basic verbose report
         if verbose:
-            print(f'SEDC probability {cf_try_prob} -{np.where(changes[best_arg] != 0)[0][0]}')
-            print(cf_try)
+            print(f'SEDC probability {cf_try_prob}')
 
         # Calculate how much the score got better
         score_increase.append(cf_try_prob)
@@ -426,7 +476,8 @@ def _super_sedc(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_facto
 
         # Update number of tries
         iterations += 1
-        # Check time for fine tuning
+
+        # Check time for fine-tune
         if ft_time is not None:
             if (datetime.now() - ft_time).total_seconds() >= ft_time_limit:
                 return cf_try
