@@ -1,5 +1,5 @@
 """
-This function has the fine-tune optimizers which take a CF and try to minimize the objective function while
+This function has the finetune optimizers which take a CF and try to minimize the objective function while
 keeping the CF as CF (i.e. not returning to the original class).
 """
 import copy
@@ -17,6 +17,31 @@ from ._obj_functions import _obj_manhattan
 def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types,
                  ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds,
                  cf_finder, avoid_back_original, verbose):
+    """
+
+    :param cf_data_type: Type of data
+    :param factual: Factual point
+    :param cf_out: Counterfactual generated from factual
+    :param mp1c: Predictor function wrapped in a predictable way
+    :param ohe_list: List of OHE features
+    :param ohe_indexes: List of OHE indexes
+    :param increase_threshold: The threshold in score which, if not higher,
+    will count to activate Tabu and Momentum
+    :param feat_types: The type for each feature
+    :param ft_change_factor: Proportion of numerical feature to be used in their modification
+    :param it_max: Maximum number of iterations
+    :param size_tabu: Size of Tabu list
+    :param ft_it_max: Maximum number of iterations for finetune
+    :param ft_threshold_distance: A threshold to identify if further modifications are (or not) effective
+    :param time_start: Initial start which algorithm started
+    :param limit_seconds: Time limit for CF generation and optimization
+    :param cf_finder: The function used to find CF explanations
+    :param avoid_back_original: If active, does not allow features going back to their original values for
+    the greedy strategy
+    :param verbose: Gives additional information about the process if true
+    :return: An optimized counterfactual
+    """
+    # Maps feat idx to name to type
     feat_idx_to_name = pd.Series(factual.index).to_dict()
     feat_idx_to_type = lambda x: feat_types[feat_idx_to_name[x]]
 
