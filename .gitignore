@@ -1,3 +1,6 @@
+Datasets/
+Models/
+
 # Internal test scripts
 .test_*.py
 
