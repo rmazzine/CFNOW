@@ -114,7 +114,7 @@ class _CFText(_CFBaseResponse):
 
 
 def find_tabular(factual, model_predict_proba, feat_types=None, cf_strategy='greedy', increase_threshold=0, it_max=1000,
-                 limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000, size_tabu=5, ft_threshold_distance=0.01,
+                 limit_seconds=120, ft_change_factor=0.1, ft_it_max=1000, size_tabu=5, ft_threshold_distance=0.01,
                  has_ohe=False, avoid_back_original=False, verbose=False):
     """
     For a factual tabular point and prediction model, finds a counterfactual explanation
@@ -122,10 +122,11 @@ def find_tabular(factual, model_predict_proba, feat_types=None, cf_strategy='gre
     :type factual: pandas.DataFrame
     :param model_predict_proba: Model's function which generates a class probability output
     :type model_predict_proba: object
-    :param feat_types: Default: (all num). A dictionary with {col_name: col_type}, where "col_name" is the name of the
-    column and "col_type" can be "num" to indicate numerical continuous features and "cat" to indicate categorical
+    :param feat_types: (optional) A dictionary with {col_name: col_type}, where "col_name" is the name of the column
+    and "col_type" can be "num" to indicate numerical continuous features and "cat" to indicate
+    categorical Default: (all num)
     :type feat_types: dict
-    :param cf_strategy: (optional) Strategy to find CF, can be "greedy" (default) or "random"
+    :param cf_strategy: (optional) Strategy to find CF, can be "greedy" or "random". Default='greedy'
     :type cf_strategy: str
     :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
     if the improvement is below that, search will stop. Default=0
@@ -149,7 +150,8 @@ def find_tabular(factual, model_predict_proba, feat_types=None, cf_strategy='gre
     be grouped as featName because they have the same prefix. Those features must be indicated in feat_types as "cat".
     Default=False
     :type has_ohe: bool
-    :param avoid_back_original: For the greedy strategy, not allows changing back to the original values
+    :param avoid_back_original: (optional) For the greedy strategy, not allows changing back to the original values.
+    Default=False
     :type avoid_back_original: bool
     :param verbose: (optional) If True, it will output detailed information of CF finding and optimization steps.
     Default=False
@@ -257,7 +259,7 @@ def find_tabular(factual, model_predict_proba, feat_types=None, cf_strategy='gre
 
 def find_image(img, model_predict, segmentation='quickshift', params_segmentation=None, replace_mode='blur',
                img_cf_strategy='nonspecific', cf_strategy='greedy', increase_threshold=-1, it_max=None,
-               limit_seconds=30, ft_change_factor=0.1, ft_it_max=None, size_tabu=None, ft_threshold_distance=0.01,
+               limit_seconds=120, ft_change_factor=0.1, ft_it_max=None, size_tabu=None, ft_threshold_distance=0.01,
                avoid_back_original=None, verbose=False):
     """
     For an image input and prediction model, finds a counterfactual explanation
@@ -277,26 +279,28 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
      to any CF class other than the factual or 'second_best' which tries to flip the classification
      to the second-highest class for the current factual. Default='nonspecific'
     :type img_cf_strategy: str
-    :param cf_strategy: (optional) Strategy to find CF, can be "greedy" (default) or "random"
+    :param cf_strategy: (optional) Strategy to find CF, can be "greedy" or "random". Default='greedy'
     :type cf_strategy: str
     :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
-    if the improvement is below that, search will stop. Default=0
+    if the improvement is below that, search will stop. Default=-1
     :type increase_threshold: int
-    :param it_max: (optional) Maximum number of iterations for CF search. Default=1000
+    :param it_max: (optional) Maximum number of iterations for CF search. Default=1000 (greedy), 100 (random)
     :type it_max: int
     :param limit_seconds: (optional) Time threshold for CF optimization. Default=120
     :type limit_seconds: int
     :param ft_change_factor: (optional) Factor used for numerical features to change their values (e.g. if 0.1 it will
     use, initially, 10% of features' value). Default=0.1
     :type ft_change_factor: float
-    :param ft_it_max: (optional) Maximum number of iterations for CF optimization step. Default=1000
+    :param ft_it_max: (optional) Maximum number of iterations for CF optimization step.
+    Default=1000 (greedy), 100 (random)
     :type ft_it_max: int
-    :param size_tabu: (optional) Size of Tabu Search list. Default=5
+    :param size_tabu: (optional) Size of Tabu Search list. Default= 1/2 of number of segments
     :type size_tabu: int
     :param ft_threshold_distance: (optional) Threshold for CF optimization enhancement, if improvement is below the
     threshold, the optimization will be stopped. Default=0.01
     :type ft_threshold_distance: float
-    :param avoid_back_original: For the greedy strategy, not allows changing back to the original values
+    :param avoid_back_original: For the greedy strategy, not allows changing back to the original values.
+    Default=True (greedy), False (random)
     :type avoid_back_original: bool
     :param verbose: (optional) If True, it will output detailed information of CF finding and optimization steps.
     Default=False
@@ -454,7 +458,7 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
 
 
 def find_text(text_input, textual_classifier, word_replace_strategy='remove', cf_strategy='greedy',
-              increase_threshold=-1, it_max=1000, limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000,
+              increase_threshold=-1, it_max=1000, limit_seconds=120, ft_change_factor=0.1, ft_it_max=1000,
               size_tabu=None, ft_threshold_distance=0.01, avoid_back_original=False, verbose=False):
     """
     For a text input and prediction model, finds a counterfactual explanation
@@ -468,7 +472,7 @@ def find_text(text_input, textual_classifier, word_replace_strategy='remove', cf
     :param cf_strategy: (optional) Strategy to find CF, can be "greedy" (default) or "random"
     :type cf_strategy: str
     :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
-    if the improvement is below that, search will stop. Default=0
+    if the improvement is below that, search will stop. Default=-1
     :type increase_threshold: int
     :param it_max: (optional) Maximum number of iterations for CF search. Default=1000
     :type it_max: int
@@ -479,7 +483,8 @@ def find_text(text_input, textual_classifier, word_replace_strategy='remove', cf
     :type ft_change_factor: float
     :param ft_it_max: (optional) Maximum number of iterations for CF optimization step. Default=1000
     :type ft_it_max: int
-    :param size_tabu: (optional) Size of Tabu Search list. Default=5
+    :param size_tabu: (optional) Size of Tabu Search list. Default= 1/2 the size of the vector created to
+    represent input text
     :type size_tabu: int
     :param ft_threshold_distance: (optional) Threshold for CF optimization enhancement, if improvement is below the
     threshold, the optimization will be stopped. Default=0.01
