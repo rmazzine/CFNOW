@@ -239,7 +239,7 @@ def _text_to_change_vector(text):
     return text_words, change_vector, text_antonyms
 
 
-def _change_vector_to_text(input_change_vector, text_words, change_vector, text_antonyms):
+def _change_vector_to_text(input_change_vector, text_words, change_vector, text_antonyms, highlight_html):
     n_rows = len(input_change_vector)
     out_texts = [copy.copy(text_words) for _ in range(n_rows)]
 
@@ -259,7 +259,16 @@ def _change_vector_to_text(input_change_vector, text_words, change_vector, text_
 
         # If change index is 0, do not make any alterations since it's the original word
         if idx_c != 0:
-            out_texts[i_text][idx_w] = text_antonyms[idx_w][idx_c]
+            word_replace = text_antonyms[idx_w][idx_c]
+            if not highlight_html:
+                out_texts[i_text][idx_w] = word_replace
+            else:
+                # If the objective is to highlight changes, add bold and red
+                if word_replace != '':
+                    out_texts[i_text][idx_w] = f'<span style="color: red;font-weight: bold;">{word_replace}</span>'
+                else:
+                    out_texts[i_text][idx_w] = f'<span style="color: red;font-weight: bold; ' \
+                                               f'text-decoration: line-through;">{out_texts[i_text][idx_w]}</span>'
 
     out_full_texts = [_untokenize(t) for t in out_texts]
 
@@ -267,5 +276,5 @@ def _change_vector_to_text(input_change_vector, text_words, change_vector, text_
 
 
 def _convert_change_vectors_func(text_words, change_vector, text_antonyms):
-    return lambda input_change_vector : _change_vector_to_text(
-        input_change_vector, text_words, change_vector, text_antonyms)
+    return lambda input_change_vector, highlight_html=False: _change_vector_to_text(
+        input_change_vector, text_words, change_vector, text_antonyms, highlight_html)

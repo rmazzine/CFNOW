@@ -16,31 +16,95 @@ from ._data_standardizer import _get_ohe_params, _seg_to_img, _text_to_change_ve
 from ._fine_tune import _fine_tuning
 from ._model_standardizer import _standardize_predictor, _adjust_model_class, _adjust_image_model, \
     _adjust_image_multiclass_nonspecific, _adjust_image_multiclass_second_best, _adjust_textual_classifier
-from ._obj_functions import _obj_manhattan
 from ._img_segmentation import gen_quickshift
 
 
-warnings.filterwarnings("ignore", category=UserWarning)
+class _CFBaseResponse:
+    """
+    Class that defines the base object to the CFNOW return
+    """
+    def __init__(self, factual, factual_vector, cf_vector, cf_not_optimized_vector, time_cf, time_cf_not_optimized):
+        self.factual = factual
+        self.factual_vector = factual_vector
+        self.cf_vector = cf_vector
+        self.cf_not_optimized_vector = cf_not_optimized_vector
+        self.time_cf = time_cf
+        self.time_cf_not_optimized = time_cf_not_optimized
 
 
-# TODO: Instead of a step greedy search strategy, create a random initialization to create CF then reduce
-# Using Tabu optimization -> This can be done several times until find a good, lowest CF
+class _CFTabular(_CFBaseResponse):
+    """
+    Class to return Tabular CF explanations
+    """
+    def __init__(self, **kwargs):
 
-# TODO: Categorical only datasets have minimum modification equal to 1, we can detect if this happens and stop search
+        super(_CFTabular, self).__init__(**kwargs)
+
+        self.cf = self.cf_vector
+        self.cf_not_optimized = self.cf_not_optimized_vector
 
 
-def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy', increase_threshold=0, it_max=1000,
+class _CFImage(_CFBaseResponse):
+    """
+    Class to return Image CF explanations
+    """
+    def __init__(self, _seg_to_img, segments, replace_img, **kwargs):
+
+        super(_CFImage, self).__init__(**kwargs)
+
+        self.segments = segments
+        self.cf = _seg_to_img([self.cf_vector], self.factual, segments, replace_img)[0]
+        self.cf_not_optimized = _seg_to_img([self.cf_not_optimized_vector], self.factual, segments, replace_img)[0]
+
+        self.cf_segments = np.where(self.cf_vector == 0)[0]
+        self.cf_not_optimized_segments = np.where(self.cf_not_optimized_vector == 0)[0]
+
+        # Green replacement to highlight changes
+        green_replace = np.zeros(self.factual.shape)
+        green_replace[:, :, 1] = 1
+        self.cf_image_highlight = _seg_to_img([self.cf_vector], self.factual, segments, green_replace)[0]
+        self.cf_not_optimized_image_highlight = _seg_to_img([self.cf_not_optimized_vector], self.factual,
+                                                            segments, green_replace)[0]
+
+
+class _CFText(_CFBaseResponse):
+    """
+    Class to return Text CF explanations
+    """
+    def __init__(self, converter, text_replace, **kwargs):
+
+        super(_CFText, self).__init__(**kwargs)
+
+        self.cf = converter([self.cf_vector])[0]
+        self.cf_not_optimized = converter([self.cf_not_optimized_vector])[0]
+
+        self.cf_html_highlight = converter([self.cf_vector], True)[0]
+        self.cf_html_not_optimized = converter([self.cf_not_optimized_vector], True)[0]
+
+        self.adjusted_factual = converter([self.factual_vector])[0]
+
+        # Remove entries that are not considered (which does not have any word)
+        text_replace_valid = np.array([t for t in text_replace if len(t) > 0])
+
+        replaced_feats_idx = np.where(self.factual_vector != self.cf_vector)[0][::2]
+        self.cf_replaced_words = [w[0] for w in text_replace_valid[replaced_feats_idx]]
+
+        replaced_not_optimized_feats_idx = np.where(self.factual_vector != self.cf_not_optimized_vector)[0][::2]
+        self.cf_not_optimized_replaced_words = [w[0] for w in text_replace_valid[replaced_not_optimized_feats_idx]]
+
+
+def find_tabular(factual, model_predict_proba, feat_types=None, cf_strategy='greedy', increase_threshold=0, it_max=1000,
                  limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000, size_tabu=5, ft_threshold_distance=0.01,
                  has_ohe=False, avoid_back_original=False, verbose=False):
     """
-
+    For a factual tabular point and prediction model, finds a counterfactual explanation
     :param factual: The factual point as Pandas DataFrame
     :type factual: pandas.DataFrame
-    :param feat_types: A dictionary with {col_name: col_type}, where "col_name" is the name of the column and
-    "col_type" can be "num" to indicate numerical continuous features and "cat" to indicate categorical
-    :type feat_types: dict
     :param model_predict_proba: Model's function which generates a class probability output
     :type model_predict_proba: object
+    :param feat_types: Default: (all num). A dictionary with {col_name: col_type}, where "col_name" is the name of the
+    column and "col_type" can be "num" to indicate numerical continuous features and "cat" to indicate categorical
+    :type feat_types: dict
     :param cf_strategy: (optional) Strategy to find CF, can be "greedy" (default) or "random"
     :type cf_strategy: str
     :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
@@ -65,14 +129,18 @@ def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy',
     be grouped as featName because they have the same prefix. Those features must be indicated in feat_types as "cat".
     Default=False
     :type has_ohe: bool
+    :param avoid_back_original: For the greedy strategy, not allows changing back to the original values
+    :type avoid_back_original: bool
     :param verbose: (optional) If True, it will output detailed information of CF finding and optimization steps.
     Default=False
     :type verbose: bool
     :return: (list) Containing [CF_array, CF_probability, CF_objective_value]
     """
 
+    # Defines the type of data
     cf_data_type = 'tabular'
 
+    # Defines the CF finding strategy
     cf_finder = None
     if cf_strategy == 'random':
         cf_finder = _random_generator
@@ -80,6 +148,10 @@ def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy',
         cf_finder = _super_sedc
     if cf_finder is None:
         raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
+
+    # If feature types were not informed, all columns will be considered numerical
+    if feat_types is None:
+        feat_types = {c: 'num' for c in factual.index}
 
     # If Tabu size list is larger than the number of features issue a warning and reduce to size_features - 1
     if len(factual) < size_tabu:
@@ -121,6 +193,9 @@ def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy',
                        ft_time_limit=None,
                        verbose=verbose)
 
+    # Calculate time to generate the not optimized CF
+    time_cf_not_optimized = datetime.now() - time_start
+
     if mp1c(np.array([cf_out]))[0] < 0.5:
         raise Warning('No CF found')
 
@@ -144,10 +219,19 @@ def find_tabular(factual, feat_types, model_predict_proba, cf_strategy='greedy',
                              avoid_back_original=avoid_back_original,
                              verbose=verbose)
 
-    print(_obj_manhattan(np.array(factual), cf_out_ft[0]))
-    print(sum(cf_out_ft[0]))
+    # Total time to generate the optimized CF
+    time_cf = datetime.now() - time_start
 
-    return cf_out_ft
+    # Create response object
+    response_obj = _CFTabular(
+        factual=factual,
+        factual_vector=factual,
+        cf_vector=cf_out_ft[0],
+        cf_not_optimized_vector=cf_out,
+        time_cf=time_cf.total_seconds(),
+        time_cf_not_optimized=time_cf_not_optimized.total_seconds())
+
+    return response_obj
 
 
 def find_image(img, model_predict, segmentation='quickshift', avoid_back_original=None, params_segmentation=None,\
@@ -219,10 +303,6 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
     else:
         raise AttributeError(f'replace_mode must be "mean", "blur", "random" or "inpaint" and not {segmentation}')
 
-    # Green replacement to highlight changes
-    green_replace = np.zeros(img.shape)
-    green_replace[:,:,1] = 1
-
     # Now create the factual, that depends of the segments and interpret them as binary features
     # Initially, all segments are activated (equal to 1)
     factual = pd.Series(np.array([1]*(np.max(segments) + 1)))
@@ -275,6 +355,9 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
                        ft_time_limit=None,
                        verbose=verbose)
 
+    # Calculate time to generate the not optimized CF
+    time_cf_not_optimized = datetime.now() - time_start
+
     if mimns(np.array([cf_out]))[0] < 0.5:
         raise Warning('No CF found')
 
@@ -298,11 +381,24 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
                              avoid_back_original=avoid_back_original,
                              verbose=verbose)
 
-    cf_img = _seg_to_img([cf_out_ft[0]], img, segments, replace_img)[0]
-    cf_img_highlight = _seg_to_img([cf_out_ft[0]], img, segments, green_replace)[0]
-    cf_segments = np.where(cf_out_ft[0] == 0)[0]
+    # Total time to generate the optimized CF
+    time_cf = datetime.now() - time_start
 
-    return cf_img, cf_img_highlight, segments, cf_segments
+    # Create response object
+    response_obj = _CFImage(
+        factual=img,
+        factual_vector=factual,
+        cf_vector=cf_out_ft[0],
+        cf_not_optimized_vector=cf_out,
+        time_cf=time_cf.total_seconds(),
+        time_cf_not_optimized=time_cf_not_optimized.total_seconds(),
+
+        _seg_to_img=_seg_to_img,
+        segments=segments,
+        replace_img=replace_img
+    )
+
+    return response_obj
 
 
 def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace_strategy='remove',
@@ -328,14 +424,13 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
     # Define type of word replacement strategy
     if word_replace_strategy == 'remove':
         text_words, change_vector, text_replace = _text_to_token_vector(text_input)
-        converter = _convert_change_vectors_func(text_words, change_vector, text_replace)
-        factual = copy.copy(change_vector)
     elif word_replace_strategy == 'antonyms':
         text_words, change_vector, text_replace = _text_to_change_vector(text_input)
-        converter = _convert_change_vectors_func(text_words, change_vector, text_replace)
-        factual = copy.copy(change_vector)
     else:
         raise AttributeError(f'word_replace_strategy must be "antonyms" and not {word_replace_strategy}')
+
+    converter = _convert_change_vectors_func(text_words, change_vector, text_replace)
+    factual = copy.copy(change_vector)
 
     feat_types = {c: 'cat' for c in factual.columns}
 
@@ -378,6 +473,8 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
                        ft_time_limit=None,
                        verbose=verbose)
 
+    # Calculate time to generate the not optimized CF
+    time_cf_not_optimized = datetime.now() - time_start
 
     # If no CF was found, return original text, since this may be common, it will not raise errors
     if mts(np.array([cf_out]))[0] < 0.5:
@@ -404,7 +501,20 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
                              avoid_back_original=avoid_back_original,
                              verbose=verbose)
 
-    factual_adjusted = converter([factual])
-    converted_output = converter([cf_out_ft[0]])
+    # Total time to generate the optimized CF
+    time_cf = datetime.now() - time_start
 
-    return factual_adjusted[0], converted_output[0], factual, cf_out_ft[0]
+    # Create response object
+    response_obj = _CFText(
+        factual=text_input,
+        factual_vector=factual.to_numpy()[0],
+        cf_vector=cf_out_ft[0],
+        cf_not_optimized_vector=cf_out,
+        time_cf=time_cf.total_seconds(),
+        time_cf_not_optimized=time_cf_not_optimized.total_seconds(),
+
+        converter=converter,
+        text_replace=text_replace,
+    )
+
+    return response_obj
