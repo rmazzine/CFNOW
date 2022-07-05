@@ -24,6 +24,15 @@ class _CFBaseResponse:
     Class that defines the base object to the CFNOW return
     """
     def __init__(self, factual, factual_vector, cf_vector, cf_not_optimized_vector, time_cf, time_cf_not_optimized):
+        """
+        This receives the base parameters that all CF should have
+        :param factual: The factual instance provided by the user
+        :param factual_vector: The vector representation of the factual instance
+        :param cf_vector: The vector representation of the (optimized) CF instance
+        :param cf_not_optimized_vector: The vector representation of the (not optimized) CF instance
+        :param time_cf: Time spent to generate the optimized CF
+        :param time_cf_not_optimized: Time spent to generate the not optimized CF
+        """
         self.factual = factual
         self.factual_vector = factual_vector
         self.cf_vector = cf_vector
@@ -49,6 +58,12 @@ class _CFImage(_CFBaseResponse):
     Class to return Image CF explanations
     """
     def __init__(self, _seg_to_img, segments, replace_img, **kwargs):
+        """
+        Image CF
+        :param _seg_to_img: Function which transforms a segment vector to an image
+        :param segments: The map of segments of the image
+        :param replace_img: The image to be replaced
+        """
 
         super(_CFImage, self).__init__(**kwargs)
 
@@ -72,6 +87,11 @@ class _CFText(_CFBaseResponse):
     Class to return Text CF explanations
     """
     def __init__(self, converter, text_replace, **kwargs):
+        """
+        Text CF
+        :param converter: Function to convert text vector representations to text
+        :param text_replace: List with words from text and the options to be replaced
+        """
 
         super(_CFText, self).__init__(**kwargs)
 
@@ -134,7 +154,8 @@ def find_tabular(factual, model_predict_proba, feat_types=None, cf_strategy='gre
     :param verbose: (optional) If True, it will output detailed information of CF finding and optimization steps.
     Default=False
     :type verbose: bool
-    :return: (list) Containing [CF_array, CF_probability, CF_objective_value]
+    :return: Object with CF information
+    :rtype: _CFTabular
     """
 
     # Defines the type of data
@@ -234,29 +255,60 @@ def find_tabular(factual, model_predict_proba, feat_types=None, cf_strategy='gre
     return response_obj
 
 
-def find_image(img, model_predict, segmentation='quickshift', avoid_back_original=None, params_segmentation=None,\
-               img_cf_strategy='nonspecific', cf_strategy='greedy', replace_mode='blur', increase_threshold=-1,
-               it_max=None, limit_seconds=30, ft_change_factor=0.1, ft_it_max=None, size_tabu=None,
-               ft_threshold_distance=0.01, has_ohe=False, verbose=False):
+def find_image(img, model_predict, segmentation='quickshift', params_segmentation=None, replace_mode='blur',
+               img_cf_strategy='nonspecific', cf_strategy='greedy', increase_threshold=-1, it_max=None,
+               limit_seconds=30, ft_change_factor=0.1, ft_it_max=None, size_tabu=None, ft_threshold_distance=0.01,
+               avoid_back_original=None, verbose=False):
+    """
+    For an image input and prediction model, finds a counterfactual explanation
+    :param img: The original image to be explained
+    :type img: np.ndarray
+    :param model_predict: Model's function which generates a class probability output
+    :type model_predict: object
+    :param segmentation: (optional) Type of segmentation to used in image. Can be: 'quickshift'. Default='quickshift'
+    :type segmentation: str
+    :param params_segmentation: (optional) Parameters passed to the segmentation algorithm.
+    Default={'kernel_size': 4, 'max_dist': 200, 'ratio': 0.2}
+    :type: dict
+    :param replace_mode: (optional) Type of replaced image, it can be 'blur', 'mean', 'random' or
+    'inpaint'. Default='blur'
+    :type replace_mode: str
+    :param img_cf_strategy: (optional) Class to be considered in the CF change. Options are 'nonspecific' which changes
+     to any CF class other than the factual or 'second_best' which tries to flip the classification
+     to the second-highest class for the current factual. Default='nonspecific'
+    :type img_cf_strategy: str
+    :param cf_strategy: (optional) Strategy to find CF, can be "greedy" (default) or "random"
+    :type cf_strategy: str
+    :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
+    if the improvement is below that, search will stop. Default=0
+    :type increase_threshold: int
+    :param it_max: (optional) Maximum number of iterations for CF search. Default=1000
+    :type it_max: int
+    :param limit_seconds: (optional) Time threshold for CF optimization. Default=120
+    :type limit_seconds: int
+    :param ft_change_factor: (optional) Factor used for numerical features to change their values (e.g. if 0.1 it will
+    use, initially, 10% of features' value). Default=0.1
+    :type ft_change_factor: float
+    :param ft_it_max: (optional) Maximum number of iterations for CF optimization step. Default=1000
+    :type ft_it_max: int
+    :param size_tabu: (optional) Size of Tabu Search list. Default=5
+    :type size_tabu: int
+    :param ft_threshold_distance: (optional) Threshold for CF optimization enhancement, if improvement is below the
+    threshold, the optimization will be stopped. Default=0.01
+    :type ft_threshold_distance: float
+    :param avoid_back_original: For the greedy strategy, not allows changing back to the original values
+    :type avoid_back_original: bool
+    :param verbose: (optional) If True, it will output detailed information of CF finding and optimization steps.
+    Default=False
+    :type verbose: bool
+    :return: Object with CF information
+    :rtype: _CFImage
     """
 
-    :param img: Image already processed to be classified, must be normalized between 0 and 1
-    :param model_predict_proba:
-    :param cf_strategy:
-    :param increase_threshold:
-    :param it_max:
-    :param limit_seconds:
-    :param ft_change_factor:
-    :param ft_it_max:
-    :param size_tabu:
-    :param ft_threshold_distance:
-    :param has_ohe:
-    :param verbose:
-    :return:
-    """
-
+    # Defines the type of data
     cf_data_type = 'image'
 
+    # Some default parameters depend on the select CF finding strategy
     cf_finder = None
     if cf_strategy == 'random':
         cf_finder = _random_generator
@@ -286,9 +338,9 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
     # Then we create the image to be replaced (considered 0)
     if replace_mode == 'mean':
         replace_img = np.zeros(img.shape)
-        replace_img[:,:,0], replace_img[:,:,1], replace_img[:,:,2] = img.mean(axis=(0,1))
+        replace_img[:, :, 0], replace_img[:, :, 1], replace_img[:, :, 2] = img.mean(axis=(0, 1))
     elif replace_mode == 'blur':
-        replace_img = cv2.GaussianBlur(img, (31,31), 0)
+        replace_img = cv2.GaussianBlur(img, (31, 31), 0)
     elif replace_mode == 'random':
         replace_img = np.random.random(img.shape)
     elif replace_mode == 'inpaint':
@@ -324,7 +376,7 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
     # TODO: Make checks
 
     # Define all features as binary
-    feat_types = {fidx: 'cat' for fidx in range(len(factual)) }
+    feat_types = {fidx: 'cat' for fidx in range(len(factual))}
 
     # Then, the model must be modified to accept this new kind of data, where 1 means the original values and 0 the
     # modified values
@@ -401,13 +453,50 @@ def find_image(img, model_predict, segmentation='quickshift', avoid_back_origina
     return response_obj
 
 
-def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace_strategy='remove',
+def find_text(text_input, textual_classifier, word_replace_strategy='remove', cf_strategy='greedy',
               increase_threshold=-1, it_max=1000, limit_seconds=30, ft_change_factor=0.1, ft_it_max=1000,
-              size_tabu=None, ft_threshold_distance=0.01, has_ohe=False, avoid_back_original=False, verbose=False):
-    # Textual predictor must receive an array of texts and output a class between 0 and 1
+              size_tabu=None, ft_threshold_distance=0.01, avoid_back_original=False, verbose=False):
+    """
+    For a text input and prediction model, finds a counterfactual explanation
+    :param text_input: The original text to be explained
+    :type text_input: str
+    :param textual_classifier: Model's function which generates a class probability output
+    :type textual_classifier: object
+    :param word_replace_strategy: (optional) Strategy to make text modifications. Can be 'remove', which simply
+    removes the word or 'antonyms' which replace words by their respective antonyms. Default='remove'
+    :type word_replace_strategy: str
+    :param cf_strategy: (optional) Strategy to find CF, can be "greedy" (default) or "random"
+    :type cf_strategy: str
+    :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
+    if the improvement is below that, search will stop. Default=0
+    :type increase_threshold: int
+    :param it_max: (optional) Maximum number of iterations for CF search. Default=1000
+    :type it_max: int
+    :param limit_seconds: (optional) Time threshold for CF optimization. Default=120
+    :type limit_seconds: int
+    :param ft_change_factor: (optional) Factor used for numerical features to change their values (e.g. if 0.1 it will
+    use, initially, 10% of features' value). Default=0.1
+    :type ft_change_factor: float
+    :param ft_it_max: (optional) Maximum number of iterations for CF optimization step. Default=1000
+    :type ft_it_max: int
+    :param size_tabu: (optional) Size of Tabu Search list. Default=5
+    :type size_tabu: int
+    :param ft_threshold_distance: (optional) Threshold for CF optimization enhancement, if improvement is below the
+    threshold, the optimization will be stopped. Default=0.01
+    :type ft_threshold_distance: float
+    :param avoid_back_original: For the greedy strategy, not allows changing back to the original values
+    :type avoid_back_original: bool
+    :param verbose: (optional) If True, it will output detailed information of CF finding and optimization steps.
+    Default=False
+    :type verbose: bool
+    :return: Object with CF information
+    :rtype: _CFImage
+    """
 
+    # Defines the type of data
     cf_data_type = 'text'
 
+    # Select CF finding strategy
     cf_finder = None
     if cf_strategy == 'random':
         cf_finder = _random_generator
@@ -445,9 +534,10 @@ def find_text(text_input, textual_classifier, cf_strategy='greedy', word_replace
 
     # Verify if the encoded classification is equal to the original classification
     # the first part must be adjusted if the score is higher than 1 since the model will flip the class
-    if (original_text_classification if original_text_classification < 0.5 else 1 - original_text_classification) != encoded_text_classification:
-        print('The original text and classifier have a different result compared with the encoded text and '
-              'adapted model. PLEASE REPORT THIS BUG, PREFERABLY WITH THE DATA AND MODEL USED.')
+    if (original_text_classification if original_text_classification < 0.5 else
+            1 - original_text_classification) != encoded_text_classification:
+        print('The original text and classifier have a different result compared with the encoded text and adapted '
+              'model. This happens because our textual encoder could not represent your text with 100% fidelity.')
 
     # Generate OHE parameters if it has OHE variables
     ohe_list, ohe_indexes = _get_ohe_params(factual.iloc[0], True)
