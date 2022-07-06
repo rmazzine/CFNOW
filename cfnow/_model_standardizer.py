@@ -11,21 +11,22 @@ from ._data_standardizer import _seg_to_img
 
 
 def _standardize_predictor(factual, model_predict_proba):
-    prob_fact = model_predict_proba(factual.to_frame().T)
-
     # Convert the output of prediction function to something that can be treated
+    # mp1 always return the 1 class and [Num] or [Num, Num, Num]
+
+    prob_fact = model_predict_proba(factual.to_frame().T)
 
     # Check how it's the output of multiple
     prob_fact_multiple = model_predict_proba(pd.concat([factual.to_frame().T, factual.to_frame().T]))
 
-    # mp1 always return the 1 class and [Num] or [Num, Num, Num]
     if str(prob_fact).isnumeric():
         # Result returns a number directly
 
         if len(np.array(prob_fact_multiple).shape) == 1:
             # Single: Num
             # Multiple: [Num, Num, Num]
-            mp1 = lambda x: np.array([model_predict_proba(x)]) if x.shape[0] == 1 else np.array(model_predict_proba(x))
+            def _mp1(x): return np.array([model_predict_proba(x)]) if x.shape[0] == 1 else \
+                np.array(model_predict_proba(x))
         else:
             # Single: Num
             # Multiple: [[Num], [Num], [Num]]
@@ -33,21 +34,22 @@ def _standardize_predictor(factual, model_predict_proba):
             if len(np.array(prob_fact_multiple)[0]) == 2:
                 index_1 = 1
             # This function gives an array containing the class 1 probability
-            mp1 = lambda x: np.array([model_predict_proba(x)]) if x.shape[0] == 1 else np.array(model_predict_proba(x))[
-                                                                                       :, index_1]
+            def _mp1(x): return np.array([model_predict_proba(x)]) if x.shape[0] == 1 else \
+                np.array(model_predict_proba(x))[:, index_1]
 
     elif len(np.array(prob_fact).shape) == 1:
         if len(np.array(prob_fact_multiple).shape) == 1:
             # Single: [Num]
             # Multiple [Num, Num, Num]
-            mp1 = lambda x: np.array(model_predict_proba(x))
+            def _mp1(x): return np.array(model_predict_proba(x))
         else:
             # Single: [Num]
             # Multiple [[Num], [Num], [Num]]
             index_1 = 0
             if len(np.array(prob_fact_multiple)[0]) == 2:
                 index_1 = 1
-            mp1 = lambda x: np.array(model_predict_proba(x))[:, index_1]
+
+            def _mp1(x): return np.array(model_predict_proba(x))[:, index_1]
     else:
         # Single: [[Num]]
         # Multiple [[Num], [Num], [Num]]
@@ -55,32 +57,32 @@ def _standardize_predictor(factual, model_predict_proba):
         if len(prob_fact[0]) == 2:
             index_1 = 1
         # This function gives an array containing the class 1 probability
-        mp1 = lambda x: np.array(model_predict_proba(x))[:, index_1]
+        def _mp1(x): return np.array(model_predict_proba(x))[:, index_1]
 
-    return mp1
+    return _mp1
 
 
 def _adjust_model_class(factual, mp1):
     # Define the cf try
     cf_try = copy.copy(factual).to_numpy()
 
-    mp1c = mp1
+    _mp1c = mp1
     # Adjust class, it must be binary and lower than 0
     if mp1(np.array([cf_try]))[0] > 0.5:
-        mp1c = lambda x: 1 - mp1(x)
+        def _mp1c(x): return 1 - mp1(x)
 
-    return mp1c
+    return _mp1c
 
 
 def _adjust_image_model(img, model_predict, segments, replace_img):
     # x is the array where the index represent the segmentation area number and the value 1 means the original
     # image and 0 the replaced image
-    def mic(seg_arr):
-        converted_imgs = _seg_to_img(seg_arr, img, segments, replace_img)
+    def _mic(seg_arr):
+        converted_images = _seg_to_img(seg_arr, img, segments, replace_img)
 
-        return model_predict(np.array(converted_imgs))
+        return model_predict(np.array(converted_images))
 
-    return mic
+    return _mic
 
 
 def _adjust_image_multiclass_nonspecific(factual, mic):
@@ -88,7 +90,7 @@ def _adjust_image_multiclass_nonspecific(factual, mic):
     pred_factual = mic([factual])
     factual_idx = np.argmax(pred_factual)
 
-    def mimns(cf_candidates):
+    def _mimns(cf_candidates):
         # Calculate the prediction of the candidates
         # Sometimes it can receive a dataframe, if it's the case, treat accordingly
         if type(cf_candidates) == pd.DataFrame:
@@ -96,9 +98,9 @@ def _adjust_image_multiclass_nonspecific(factual, mic):
         else:
             pred_cfs = mic(cf_candidates)
         # Get the value of the factual class
-        pred_factual_class = np.copy(pred_cfs[: ,factual_idx])
+        pred_factual_class = np.copy(pred_cfs[:, factual_idx])
         # Now, to guarantee to get the best non factual value, let's consider the factual idx as -infinity
-        pred_cfs[: ,factual_idx] = -np.inf
+        pred_cfs[:, factual_idx] = -np.inf
         # Now, get the best values for each candidate
         pred_best_cf_class = np.max(pred_cfs, axis=1)
 
@@ -106,9 +108,9 @@ def _adjust_image_multiclass_nonspecific(factual, mic):
         class_dif = pred_factual_class - pred_best_cf_class
 
         # Return a probability like value, where 1 is the factual and 0 counterfactual
-        return 1/(1+np.e**(class_dif))
+        return 1/(1+np.e**class_dif)
 
-    return mimns
+    return _mimns
 
 
 def _adjust_image_multiclass_second_best(factual, mic):
@@ -118,7 +120,7 @@ def _adjust_image_multiclass_second_best(factual, mic):
     pred_factual[0][factual_idx] = -np.inf
     cf_idx = copy.copy(np.argmax(pred_factual))
 
-    def mimns(cf_candidates):
+    def _mimns(cf_candidates):
         # Calculate the prediction of the candidates
         # Sometimes it can receive a dataframe, if it's the case, treat accordingly
         if type(cf_candidates) == pd.DataFrame:
@@ -126,9 +128,9 @@ def _adjust_image_multiclass_second_best(factual, mic):
         else:
             pred_cfs = mic(cf_candidates)
         # Get the value of the factual class
-        pred_cf_class = np.copy(pred_cfs[: ,cf_idx])
+        pred_cf_class = np.copy(pred_cfs[:, cf_idx])
         # Now, to guarantee to get the best non factual value, let's consider the factual idx as -infinity
-        pred_cfs[: ,cf_idx] = -np.inf
+        pred_cfs[:, cf_idx] = -np.inf
         # Now, get the best value which is not the CF
         pred_best_ncf_class = np.max(pred_cfs, axis=1)
 
@@ -136,9 +138,9 @@ def _adjust_image_multiclass_second_best(factual, mic):
         class_dif = pred_best_ncf_class - pred_cf_class
 
         # Return a probability like value, where 1 is the factual and 0 counterfactual
-        return 1/(1+np.e**(class_dif))
+        return 1/(1+np.e**class_dif)
 
-    return mimns
+    return _mimns
 
 
 def _adjust_textual_classifier(textual_classifier, converter, original_text_classification):
