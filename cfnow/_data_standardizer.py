@@ -1,6 +1,7 @@
 """
 This module has functions which gets information about the factual data and standardize to the CF generator.
 """
+import os
 import re
 import copy
 import pickle
@@ -12,7 +13,7 @@ import nltk
 from nltk import pos_tag
 from nltk.corpus import wordnet
 
-with open('./cfnow/assets/verb_tenses.pkl', 'rb') as handle:
+with open(f'{os.path.abspath(os.path.dirname(__file__))}/assets/verb_tenses.pkl', 'rb') as handle:
     verb_tenses_dict = pickle.load(handle)
 
 
