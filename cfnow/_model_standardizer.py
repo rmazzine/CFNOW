@@ -112,7 +112,7 @@ def _adjust_image_multiclass_nonspecific(factual, mic):
         # Make the comparison
         class_dif = pred_factual_class - pred_best_cf_class
 
-        # Return a probability like value, where 1 is the factual and 0 counterfactual
+        # Return a probability like value, where 0 is the factual and 1 counterfactual
         return 1/(1+np.e**class_dif)
 
     return _mimns
@@ -144,7 +144,7 @@ def _adjust_image_multiclass_second_best(factual, mic):
         # Make the comparison
         class_dif = pred_best_ncf_class - pred_cf_class
 
-        # Return a probability like value, where 1 is the factual and 0 counterfactual
+        # Return a probability like value, where 0 is the factual and 1 counterfactual
         return 1/(1+np.e**class_dif)
 
     return _mimns
