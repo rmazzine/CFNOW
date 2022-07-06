@@ -86,6 +86,13 @@ def _adjust_image_model(img, model_predict, segments, replace_img):
     return _mic
 
 
+def _convert_to_numpy(data):
+    if type(data) == pd.DataFrame:
+        return data.to_numpy()
+    if type(data) == np.ndarray:
+        return data
+
+
 def _adjust_image_multiclass_nonspecific(factual, mic):
     # Compare the factual class value to the other highest
     pred_factual = mic([factual])
@@ -93,11 +100,8 @@ def _adjust_image_multiclass_nonspecific(factual, mic):
 
     def _mimns(cf_candidates):
         # Calculate the prediction of the candidates
-        # Sometimes it can receive a dataframe, if it's the case, treat accordingly
-        if type(cf_candidates) == pd.DataFrame:
-            pred_cfs = mic(cf_candidates.to_numpy())
-        else:
-            pred_cfs = mic(cf_candidates)
+        pred_cfs = mic(_convert_to_numpy(cf_candidates))
+
         # Get the value of the factual class
         pred_factual_class = np.copy(pred_cfs[:, factual_idx])
         # Now, to guarantee to get the best non factual value, let's consider the factual idx as -infinity
@@ -115,6 +119,10 @@ def _adjust_image_multiclass_nonspecific(factual, mic):
 
 
 def _adjust_image_multiclass_second_best(factual, mic):
+    # In this function, we get the second-highest scored class and make it as the CF to be found.
+    # Then, the score of this target (the originally second-highest scored class) is compared with the other best
+    # result.
+
     # Compare the factual class value to the other highest
     pred_factual = mic([factual])
     factual_idx = copy.copy(np.argmax(pred_factual))
@@ -124,13 +132,11 @@ def _adjust_image_multiclass_second_best(factual, mic):
     def _mimns(cf_candidates):
         # Calculate the prediction of the candidates
         # Sometimes it can receive a dataframe, if it's the case, treat accordingly
-        if type(cf_candidates) == pd.DataFrame:
-            pred_cfs = mic(cf_candidates.to_numpy())
-        else:
-            pred_cfs = mic(cf_candidates)
-        # Get the value of the factual class
+        pred_cfs = mic(_convert_to_numpy(cf_candidates))
+
+        # Get the value of the cf class
         pred_cf_class = np.copy(pred_cfs[:, cf_idx])
-        # Now, to guarantee to get the best non factual value, let's consider the factual idx as -infinity
+        # Now, to guarantee to get the best non cf value, let's consider the factual idx as -infinity
         pred_cfs[:, cf_idx] = -np.inf
         # Now, get the best value which is not the CF
         pred_best_ncf_class = np.max(pred_cfs, axis=1)
