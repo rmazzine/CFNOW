@@ -41,20 +41,32 @@ def _standardize_predictor(factual, model_predict_proba):
         else:
             # Single: [Num]
             # Multiple [[Num], [Num], [Num]]
-            index_1 = 0
-            if len(np.array(prob_fact_multiple)[0]) == 2:
-                index_1 = 1
+            if len(np.array(prob_fact_multiple)[0]) > 1:
+                # If there are more than one class, the multiclass nonspecific strategy will be performed
+                # where the factual (the largest initial output) is compared with the highest scoring class
+                # TODO: This can be improved with other strategies like second best or even specific class
+                _adjusted_nonspecific_mp1 = _adjust_image_multiclass_nonspecific(
+                    factual, lambda z: np.array([model_predict_proba(z)])
+                    if np.array(z).shape[0] == 1 else np.array(model_predict_proba(z)))
 
-            def _mp1(x): return np.array([model_predict_proba(x)[index_1]]) if x.shape[0] == 1 else \
-                np.array(model_predict_proba(x))[:, index_1]
+                def _mp1(x): return _adjusted_nonspecific_mp1(x)
+            else:
+                def _mp1(x): return np.array([model_predict_proba(x)[0]]) if x.shape[0] == 1 else \
+                    np.array(model_predict_proba(x))[:, 0]
     else:
         # Single: [[Num]]
         # Multiple [[Num], [Num], [Num]]
-        index_1 = 0
-        if len(prob_fact[0]) == 2:
-            index_1 = 1
-        # This function gives an array containing the class 1 probability
-        def _mp1(x): return np.array(model_predict_proba(x))[:, index_1]
+        if len(prob_fact[0]) > 1:
+            # If there are more than one class, the multiclass nonspecific strategy will be performed
+            # where the factual (the largest initial output) is compared with the highest scoring class
+            # TODO: This can be improved with other strategies like second best or even specific class
+            _adjusted_nonspecific_mp1 = _adjust_image_multiclass_nonspecific(factual,
+                                                                             lambda z: np.array(model_predict_proba(z)))
+
+            def _mp1(x): return _adjusted_nonspecific_mp1(x)
+        else:
+            # This function gives an array containing the class 1 probability
+            def _mp1(x): return np.array(model_predict_proba(x))[:, 0]
 
     return _mp1
 
@@ -96,7 +108,7 @@ def _adjust_image_multiclass_nonspecific(factual, mic):
 
     def _mimns(cf_candidates):
         # Calculate the prediction of the candidates
-        pred_cfs = mic(_convert_to_numpy(cf_candidates))
+        pred_cfs = mic(_convert_to_numpy(cf_candidates)).astype('float')
 
         # Get the value of the factual class
         pred_factual_class = np.copy(pred_cfs[:, factual_idx])
