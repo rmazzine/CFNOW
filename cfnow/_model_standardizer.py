@@ -45,7 +45,7 @@ def _standardize_predictor(factual, model_predict_proba):
             if len(np.array(prob_fact_multiple)[0]) == 2:
                 index_1 = 1
 
-            def _mp1(x): return np.array(model_predict_proba(x)) if x.shape[0] == 1 else \
+            def _mp1(x): return np.array([model_predict_proba(x)[index_1]]) if x.shape[0] == 1 else \
                 np.array(model_predict_proba(x))[:, index_1]
     else:
         # Single: [[Num]]
