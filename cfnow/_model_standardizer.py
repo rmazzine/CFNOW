@@ -45,7 +45,7 @@ def _standardize_predictor(factual, model_predict_proba):
                 # If there are more than one class, the multiclass nonspecific strategy will be performed
                 # where the factual (the largest initial output) is compared with the highest scoring class
                 # TODO: This can be improved with other strategies like second best or even specific class
-                _adjusted_nonspecific_mp1 = _adjust_image_multiclass_nonspecific(
+                _adjusted_nonspecific_mp1 = _adjust_multiclass_nonspecific(
                     factual, lambda z: np.array([model_predict_proba(z)])
                     if np.array(z).shape[0] == 1 else np.array(model_predict_proba(z)))
 
@@ -60,8 +60,8 @@ def _standardize_predictor(factual, model_predict_proba):
             # If there are more than one class, the multiclass nonspecific strategy will be performed
             # where the factual (the largest initial output) is compared with the highest scoring class
             # TODO: This can be improved with other strategies like second best or even specific class
-            _adjusted_nonspecific_mp1 = _adjust_image_multiclass_nonspecific(factual,
-                                                                             lambda z: np.array(model_predict_proba(z)))
+            _adjusted_nonspecific_mp1 = _adjust_multiclass_nonspecific(factual,
+                                                                       lambda z: np.array(model_predict_proba(z)))
 
             def _mp1(x): return _adjusted_nonspecific_mp1(x)
         else:
@@ -101,7 +101,7 @@ def _convert_to_numpy(data):
         return data
 
 
-def _adjust_image_multiclass_nonspecific(factual, mic):
+def _adjust_multiclass_nonspecific(factual, mic):
     # Compare the factual class value to the other highest
     pred_factual = mic([factual])
     factual_idx = np.argmax(pred_factual)
@@ -126,7 +126,7 @@ def _adjust_image_multiclass_nonspecific(factual, mic):
     return _mimns
 
 
-def _adjust_image_multiclass_second_best(factual, mic):
+def _adjust_multiclass_second_best(factual, mic):
     # In this function, we get the second-highest scored class and make it as the CF to be found.
     # Then, the score of this target (the originally second-highest scored class) is compared with the other best
     # result.

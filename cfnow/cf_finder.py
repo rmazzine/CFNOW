@@ -15,7 +15,7 @@ from ._data_standardizer import _get_ohe_params, _seg_to_img, _text_to_change_ve
     _convert_change_vectors_func
 from ._fine_tune import _fine_tuning
 from ._model_standardizer import _standardize_predictor, _adjust_model_class, _adjust_image_model, \
-    _adjust_image_multiclass_nonspecific, _adjust_image_multiclass_second_best, _adjust_textual_classifier
+    _adjust_multiclass_nonspecific, _adjust_multiclass_second_best, _adjust_textual_classifier
 from ._img_segmentation import gen_quickshift
 
 
@@ -388,9 +388,9 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
 
     # Get probability values adjusted
     if img_cf_strategy == 'nonspecific':
-        mimns = _adjust_image_multiclass_nonspecific(factual, mic)
+        mimns = _adjust_multiclass_nonspecific(factual, mic)
     elif img_cf_strategy == 'second_best':
-        mimns = _adjust_image_multiclass_second_best(factual, mic)
+        mimns = _adjust_multiclass_second_best(factual, mic)
     else:
         raise AttributeError(f'img_cf_strategy must be "nonspecific" or "second_best" and not {img_cf_strategy}')
 
