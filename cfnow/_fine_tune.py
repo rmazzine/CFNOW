@@ -38,7 +38,7 @@ def _calculate_change_factor(c_cf, changes_back_factual, feat_distances, changes
     return change_factor_feat
 
 
-def _generate_change_vectors(factual, factual_np, c_cf, feat_idx_to_type, tabu_list,
+def _generate_change_vectors(factual, factual_np, c_cf, _feat_idx_to_type, tabu_list,
                              ohe_indexes, ohe_list, ft_threshold_distance):
     # Generate change vector with all changes that would make the cf return
     # to factual for each feature
@@ -69,7 +69,7 @@ def _generate_change_vectors(factual, factual_np, c_cf, feat_idx_to_type, tabu_l
         # CHANGE VECTOR MUST BE [0, 0, 8]
         change_vector = copy.copy(template_vector)
         # If it belongs to num, then just create a vector that returns to original value
-        if feat_idx_to_type(di) == 'num':
+        if _feat_idx_to_type(di) == 'num':
             change_vector[di] = factual_np[di] - c_cf[di]
         elif di in ohe_indexes:
             change_ohe_idx = _get_ohe_list(di, ohe_list)
