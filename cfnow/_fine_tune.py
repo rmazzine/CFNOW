@@ -40,6 +40,12 @@ def _calculate_change_factor(c_cf, changes_back_factual, feat_distances, changes
 
 def _generate_change_vectors(factual, factual_np, c_cf, _feat_idx_to_type, tabu_list,
                              ohe_indexes, ohe_list, ft_threshold_distance):
+    """
+    This function takes the factual and CF and calculates:
+    changes_back_factual: an array of possible modifications to return to original values
+    changes_back_original_idxs: the indexes of features that have different values from original
+    feat_distances: the distance of the features to the original feature values
+    """
     # Generate change vector with all changes that would make the cf return
     # to factual for each feature
     changes_back_factual = []
