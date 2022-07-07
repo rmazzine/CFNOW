@@ -14,6 +14,100 @@ from ._data_standardizer import _get_ohe_list
 from ._obj_functions import _obj_manhattan
 
 
+def _create_mod_change(changes_back_factual, change_idx, change_original_idx, ft_change_factor, _feat_idx_to_type):
+    # Get the respective change vector
+    # If numerical, use factor
+    if _feat_idx_to_type(change_original_idx) == 'num':
+        mod_change = changes_back_factual[change_idx] * ft_change_factor
+    else:
+        mod_change = changes_back_factual[change_idx]
+
+    return mod_change
+
+
+def _calculate_change_factor(c_cf, changes_back_factual, feat_distances, changes_back_original_idxs,  mp1c, c_cf_c):
+    # Generate the CF back factual
+    cf_back_factual = c_cf + np.array(copy.copy(changes_back_factual))
+
+    # Now, calculate the probability for each different index
+    cf_back_factual_probs = mp1c(cf_back_factual)
+
+    # Calculate how much a unitary change cause a change in probability
+    change_factor_feat = (c_cf_c - cf_back_factual_probs) / feat_distances[changes_back_original_idxs]
+
+    return change_factor_feat
+
+
+def _generate_change_vectors(factual, factual_np, c_cf, feat_idx_to_type, tabu_list,
+                             ohe_indexes, ohe_list, ft_threshold_distance):
+    # Generate change vector with all changes that would make the cf return
+    # to factual for each feature
+    changes_back_factual = []
+    changes_back_original_idxs = []
+
+    # Threshold of distance
+    feat_distances = np.abs(c_cf - factual_np)
+
+    # The features that very close to the factual (below of the threshold)
+    # must be considered as zero
+    feat_distances[np.where(feat_distances < ft_threshold_distance)] = 0
+
+    # First, get indexes that are different
+    diff_idxs = np.where(feat_distances != 0)
+
+    # Create a flatten list of forbidden indexes
+    forbidden_indexes = [item for sublist in tabu_list for item in sublist]
+
+    template_vector = np.full((factual.shape[0],), 0, dtype=float)
+    # For each different index
+    for di in diff_idxs[0]:
+        # if index is in Tabu list, skip this index
+        if di in forbidden_indexes:
+            continue
+        # CHANGE OPERATIONS ALWAYS ADD TO THE CF VECTOR
+        # THEN IF FACTUAL [0,1,10] AND CF IS [0,1,2] THEN
+        # CHANGE VECTOR MUST BE [0, 0, 8]
+        change_vector = copy.copy(template_vector)
+        # If it belongs to num, then just create a vector that returns to original value
+        if feat_idx_to_type(di) == 'num':
+            change_vector[di] = factual_np[di] - c_cf[di]
+        elif di in ohe_indexes:
+            change_ohe_idx = _get_ohe_list(di, ohe_list)
+            change_vector[change_ohe_idx] = factual_np[change_ohe_idx] - c_cf[change_ohe_idx]
+        else:
+            # It's binary
+            change_vector[di] = factual_np[di] - c_cf[di]
+
+        changes_back_factual.append(change_vector)
+        # Add original_index to track
+        changes_back_original_idxs.append(di)
+
+    return changes_back_factual, changes_back_original_idxs, feat_distances
+
+
+def _stop_optimization_conditions(factual_np, c_cf, limit_seconds, time_start, all_feat_types, len_ohe):
+    """
+    This function has additional stop conditions for the optimization step
+    """
+
+    # If all categorical and distance is 1, then, it's the best optimized solution, return result
+    if len(all_feat_types) == 1 and all_feat_types[0] == 'cat':
+        if _obj_manhattan(factual_np, c_cf) == 1:
+            return True
+
+    # If all OHE and the distance is 2, then, it's the best optimized solution, return result
+    if len(all_feat_types) == 1 and len_ohe == len(factual_np):
+        if _obj_manhattan(factual_np, c_cf) == 2:
+            return True
+
+    # Check time limit
+    if (datetime.now() - time_start).total_seconds() >= limit_seconds:
+        print('Timeout reached')
+        return True
+
+    return False
+
+
 def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types,
                  ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds,
                  cf_finder, avoid_back_original, verbose):
@@ -43,7 +137,7 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
     """
     # Maps feat idx to name to type
     feat_idx_to_name = pd.Series(factual.index).to_dict()
-    feat_idx_to_type = lambda x: feat_types[feat_idx_to_name[x]]
+    def _feat_idx_to_type(x): return feat_types[feat_idx_to_name[x]]
 
     factual_np = factual.to_numpy()
 
@@ -67,66 +161,15 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
 
     for i in range(ft_it_max):
 
-        # If all categorical and distance is 1, then, it's the best optimized solution, return result
-        if len(all_feat_types) == 1 and all_feat_types[0] == 'cat':
-            if _obj_manhattan(factual_np, c_cf) == 1:
-                return best_solution
-
-        # If all OHE and the distance is 2, then, it's the best optimized solution, return result
-        if len(all_feat_types) == 1 and len_ohe == len(factual_np):
-            if _obj_manhattan(factual_np, c_cf) == 2:
-                return best_solution
-
-        # Check time limit
-        if (datetime.now() - time_start).total_seconds() >= limit_seconds:
-            print('Timeout reached')
+        if _stop_optimization_conditions(factual_np, c_cf, limit_seconds, time_start, all_feat_types, len_ohe):
             return best_solution
 
         if verbose:
             print(tabu_list)
             print(f'Fine tuning: Prob={c_cf_c} / Distance={_obj_manhattan(factual_np, c_cf)}')
 
-        # Generate change vector with all changes that would make the cf return
-        # to factual for each feature
-        changes_back_factual = []
-        changes_back_original_idxs = []
-
-        # Threshold of distance
-        feat_distances = np.abs(c_cf - factual_np)
-
-        # The features that very close to the factual (below of the threshold)
-        # must be considered as zero
-        feat_distances[np.where(feat_distances < ft_threshold_distance)] = 0
-
-        # First, get indexes that are different
-        diff_idxs = np.where(feat_distances != 0)
-
-        # Create a flatten list of forbidden indexes
-        forbidden_indexes = [item for sublist in tabu_list for item in sublist]
-
-        template_vector = np.full((factual.shape[0],), 0, dtype=float)
-        # For each different index
-        for di in diff_idxs[0]:
-            # if index is in Tabu list, skip this index
-            if di in forbidden_indexes:
-                continue
-            # CHANGE OPERATIONS ALWAYS ADD TO THE CF VECTOR
-            # THEN IF FACTUAL [0,1,10] AND CF IS [0,1,2] THEN
-            # CHANGE VECTOR MUST BE [0, 0, 8]
-            change_vector = copy.copy(template_vector)
-            # If it belongs to num, then just create a vector that returns to original value
-            if feat_idx_to_type(di) == 'num':
-                change_vector[di] = factual_np[di] - c_cf[di]
-            elif di in ohe_indexes:
-                change_ohe_idx = _get_ohe_list(di, ohe_list)
-                change_vector[change_ohe_idx] = factual_np[change_ohe_idx] - c_cf[change_ohe_idx]
-            else:
-                # It's binary
-                change_vector[di] = factual_np[di] - c_cf[di]
-
-            changes_back_factual.append(change_vector)
-            # Add original_index to track
-            changes_back_original_idxs.append(di)
+        changes_back_factual, changes_back_original_idxs, feat_distances = _generate_change_vectors(
+            factual, factual_np, c_cf, _feat_idx_to_type, tabu_list, ohe_indexes, ohe_list, ft_threshold_distance)
 
         # In some situations, the Tabu list contains all modified indexes, in this case
         # give some inspiration to explore new regions, now, currently there's no implementation of that
@@ -135,25 +178,15 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
             warnings.warn('Change list is empty')
             return best_solution
 
-        # Generate the CF back factual
-        cf_back_factual = c_cf + np.array(copy.copy(changes_back_factual))
-
-        # Now, calculate the probability for each different index
-        cf_back_factual_probs = mp1c(cf_back_factual)
-
-        # Calculate how much an unitary change cause a change in probability
-        change_factor_feat = (c_cf_c - cf_back_factual_probs) / feat_distances[changes_back_original_idxs]
+        change_factor_feat = _calculate_change_factor(c_cf, changes_back_factual, feat_distances,
+                                                      changes_back_original_idxs,  mp1c, c_cf_c)
 
         # Select the change based on the lowest change factor
         change_idx = np.argmin(change_factor_feat)
         change_original_idx = changes_back_original_idxs[change_idx]
 
-        # Get the respective change vector
-        # If numerical, use factor
-        if feat_idx_to_type(change_original_idx) == 'num':
-            mod_change = changes_back_factual[change_idx] * ft_change_factor
-        else:
-            mod_change = changes_back_factual[change_idx]
+        mod_change = _create_mod_change(changes_back_factual, change_idx, change_original_idx,
+                                        ft_change_factor, _feat_idx_to_type)
 
         # Make modification
         c_cf = c_cf + mod_change
@@ -169,6 +202,7 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
             if c_cf_o < best_solution[2]:
                 best_solution = [copy.copy(c_cf), c_cf_c, c_cf_o]
         else:
+            # Not a CF
             # Add index to Tabu list
             # If numerical or binary, just add the single index
             # However, if it's OHE add all related indexes
