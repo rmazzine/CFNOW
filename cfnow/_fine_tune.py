@@ -91,10 +91,16 @@ def _generate_change_vectors(factual, factual_np, c_cf, _feat_idx_to_type, tabu_
     return changes_back_factual, changes_back_original_idxs, feat_distances
 
 
-def _stop_optimization_conditions(factual_np, c_cf, limit_seconds, time_start, all_feat_types, len_ohe):
+def _stop_optimization_conditions(factual_np, c_cf, limit_seconds, time_start, feat_types, ohe_list):
     """
     This function has additional stop conditions for the optimization step
     """
+
+    # Get all feature types
+    all_feat_types = list(set(feat_types.values()))
+
+    # Get len of OHE features
+    len_ohe = len([item for sublist in ohe_list for item in sublist])
 
     # If all categorical and distance is 1, then, it's the best optimized solution, return result
     if len(all_feat_types) == 1 and all_feat_types[0] == 'cat':
@@ -149,12 +155,6 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
 
     tabu_list = deque(maxlen=size_tabu)
 
-    # Get all feature types
-    all_feat_types = list(set(feat_types.values()))
-
-    # Get len of OHE features
-    len_ohe = len([item for sublist in ohe_list for item in sublist])
-
     # Create array to store the best solution
     # It has: the VALID CF, the CF score and the objective function  (L1 distance)
     best_solution = [copy.copy(cf_out), mp1c(np.array([cf_out]))[0], _obj_manhattan(factual_np, cf_out)]
@@ -167,7 +167,7 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
 
     for i in range(ft_it_max):
 
-        if _stop_optimization_conditions(factual_np, c_cf, limit_seconds, time_start, all_feat_types, len_ohe):
+        if _stop_optimization_conditions(factual_np, c_cf, limit_seconds, time_start, feat_types, ohe_list):
             return best_solution
 
         if verbose:
