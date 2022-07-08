@@ -3,6 +3,7 @@ This function has the finetune optimizers which take a CF and try to minimize th
 keeping the CF as CF (i.e. not returning to the original class).
 """
 import copy
+import logging
 import warnings
 from datetime import datetime
 from collections import deque
@@ -114,7 +115,7 @@ def _stop_optimization_conditions(factual_np, c_cf, limit_seconds, time_start, f
 
     # Check time limit
     if (datetime.now() - time_start).total_seconds() >= limit_seconds:
-        print('Timeout reached')
+        logging.log(20, 'Timeout reached')
         return True
 
     return False
@@ -171,8 +172,9 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
             return best_solution
 
         if verbose:
-            print(tabu_list)
-            print(f'Fine tuning: Prob={c_cf_c} / Distance={_obj_manhattan(factual_np, c_cf)}')
+            logging.log(10, f'Fine tuning: Prob = {c_cf_c}\n'
+                            f'Distance = {_obj_manhattan(factual_np, c_cf)}\n'
+                            f'Tabu list elements = {tabu_list}')
 
         changes_back_factual, changes_back_original_idxs, feat_distances = _generate_change_vectors(
             factual, factual_np, c_cf, _feat_idx_to_type, tabu_list, ohe_indexes, ohe_list, ft_threshold_distance)

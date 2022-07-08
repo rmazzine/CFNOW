@@ -2,6 +2,7 @@
 This module has the function that produces the CF using different types of cf finders and fine-tune.
 """
 import copy
+import logging
 import warnings
 from datetime import datetime
 
@@ -220,7 +221,14 @@ def find_tabular(factual, model_predict_proba, feat_types=None, cf_strategy='gre
     time_cf_not_optimized = datetime.now() - time_start
 
     if mp1c(np.array([cf_out]))[0] < 0.5:
-        raise Warning('No CF found')
+        logging.log(30, 'No CF found.')
+        return _CFTabular(
+            factual=factual,
+            factual_vector=factual,
+            cf_vector=None,
+            cf_not_optimized_vector=None,
+            time_cf=None,
+            time_cf_not_optimized=time_cf_not_optimized.total_seconds())
 
     # Fine tune the counterfactual
     cf_out_ft = _fine_tuning(cf_data_type=cf_data_type,
@@ -415,7 +423,19 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
     time_cf_not_optimized = datetime.now() - time_start
 
     if mimns(np.array([cf_out]))[0] < 0.5:
-        raise Warning('No CF found')
+        logging.log(30, 'No CF found.')
+        return _CFImage(
+            factual=img,
+            factual_vector=factual,
+            cf_vector=None,
+            cf_not_optimized_vector=None,
+            time_cf=None,
+            time_cf_not_optimized=time_cf_not_optimized.total_seconds(),
+
+            _seg_to_img=_seg_to_img,
+            segments=segments,
+            replace_img=replace_img
+        )
 
     # Fine tune the counterfactual
     cf_out_ft = _fine_tuning(cf_data_type=cf_data_type,
@@ -539,10 +559,23 @@ def find_text(text_input, textual_classifier, word_replace_strategy='remove', cf
 
     # Verify if the encoded classification is equal to the original classification
     # the first part must be adjusted if the score is higher than 1 since the model will flip the class
-    if (original_text_classification if original_text_classification < 0.5 else
-            1 - original_text_classification) != encoded_text_classification:
-        print('The original text and classifier have a different result compared with the encoded text and adapted '
-              'model. This happens because our textual encoder could not represent your text with 100% fidelity.')
+    adjusted_encoded_classification = (encoded_text_classification if original_text_classification < 0.5 else
+                                       1 - encoded_text_classification)
+    if adjusted_encoded_classification != original_text_classification:
+        log_warn_text = f'The input factual text has a different classification if compared with the encoded '\
+                        f'factual input. This happens because during the encoding process, the text structure '\
+                        f'could not be reproduced with 100% fidelity (e.g., extra commas were removed). '
+        # If the class is the same, no problem:
+        if adjusted_encoded_classification > 0.5 == original_text_classification > 0.5:
+            log_warn_text += f'This should not be a problem since the classification still the same:\n'
+        else:
+            # If we had a class change, then the CF is the modification already done
+            log_warn_text += f'THE MODIFICATIONS WERE ENOUGH TO GENERATE A COUNTERFACTUAL:\n'
+
+        log_warn_text += f'Original input classification = {original_text_classification}\n' \
+                         f'Encoded input classification = {adjusted_encoded_classification}'
+
+        logging.log(30, log_warn_text)
 
     # Generate OHE parameters if it has OHE variables
     ohe_list, ohe_indexes = _get_ohe_params(factual.iloc[0], True)
@@ -573,8 +606,18 @@ def find_text(text_input, textual_classifier, word_replace_strategy='remove', cf
 
     # If no CF was found, return original text, since this may be common, it will not raise errors
     if mts(np.array([cf_out]))[0] < 0.5:
-        print('No CF found')
-        return text_input, text_input, factual, factual
+        logging.log(30, 'No CF found.')
+        return _CFText(
+            factual=text_input,
+            factual_vector=factual.to_numpy()[0],
+            cf_vector=None,
+            cf_not_optimized_vector=None,
+            time_cf=None,
+            time_cf_not_optimized=time_cf_not_optimized.total_seconds(),
+
+            converter=converter,
+            text_replace=text_replace,
+        )
 
     # Fine tune the counterfactual
     cf_out_ft = _fine_tuning(cf_data_type=cf_data_type,

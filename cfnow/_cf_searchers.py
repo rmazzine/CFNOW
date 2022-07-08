@@ -10,6 +10,7 @@ to ft_change_factor and momentum (feature*ft_change_factor + momentum)
 """
 import math
 import copy
+import logging
 from collections import deque
 from datetime import datetime
 from itertools import combinations
@@ -288,7 +289,7 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
 
             # Basic verbose report
             if verbose:
-                print(f'SEDC probability {cf_try_prob}')
+                logging.log(10, f'Best CF try probability = {cf_try_prob}')
 
             # Calculate how much the score got better
             score_increase.append(cf_try_prob)
@@ -443,7 +444,7 @@ def _super_sedc(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_facto
 
         # Basic verbose report
         if verbose:
-            print(f'SEDC probability {cf_try_prob}')
+            logging.log(10, f'Best CF try probability = {cf_try_prob}')
 
         # Calculate how much the score got better
         score_increase.append(cf_try_prob)
