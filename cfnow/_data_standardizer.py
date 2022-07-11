@@ -19,7 +19,7 @@ with open(f'{os.path.abspath(os.path.dirname(__file__))}/assets/verb_tenses.pkl'
 
 def _get_ohe_params(factual, has_ohe):
     """
-    Find the group of columns related to a OHE enconding and their respective indexes
+    Find the group of columns related to a OHE encoding and their respective indexes
     :param factual: The factual point
     :param has_ohe: If True, it will try to get OHE information
     :return: (list) The first list has the groups of columns related to the OHE features while the second list has
@@ -53,15 +53,15 @@ def _get_ohe_list(f_idx, ohe_list):
 def _seg_to_img(seg_arr, img, segments, replace_img):
     # Gets a segmentation code and transforms to image data
 
-    converted_imgs = []
+    converted_img = []
     for seg in seg_arr:
         mask_original = np.isin(segments, np.where(seg)[0]).astype(float)
         mask_replace = (mask_original == 0).astype(float)
-        converted_imgs.append(
+        converted_img.append(
             img * np.stack((mask_original, mask_original, mask_original), axis=-1) +
             replace_img * np.stack((mask_replace, mask_replace, mask_replace), axis=-1))
 
-    return converted_imgs
+    return converted_img
 
 
 def _untokenize(words):
@@ -72,12 +72,12 @@ def _untokenize(words):
     except for line breaks.
     """
     text = ' '.join(words)
-    step1 = text.replace("`` ", '"').replace(" ''", '"').replace('. . .',  '...')
+    step1 = text.replace("`` ", '"').replace(" ''", '"').replace('. . .', '...')
     step2 = step1.replace(" ( ", " (").replace(" ) ", ") ")
     step3 = re.sub(r' ([.,:;?!%]+)([ \'"`])', r"\1\2", step2)
     step4 = re.sub(r' ([.,:;?!%]+)$', r"\1", step3)
     step5 = step4.replace(" '", "'").replace(" n't", "n't").replace(
-         "can not", "cannot")
+        "can not", "cannot")
     step6 = step5.replace(" ` ", " '")
     return step6.strip()
 
@@ -130,9 +130,9 @@ def _get_antonyms(word, pos):
     # RB - adverb, RBR - adverb comparative, RBS - adverb superlative
     # if pos in ['JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ']:
     for syn in wordnet.synsets(word):
-        for l in syn.lemmas():
-            if l.antonyms():
-                antonym_word = l.antonyms()[0].name()
+        for syn_l in syn.lemmas():
+            if syn_l.antonyms():
+                antonym_word = syn_l.antonyms()[0].name()
                 if antonym_word in verb_tenses_dict.keys():
                     if pos == 'VBD':
                         antonyms.append(verb_tenses_dict[antonym_word][1])
@@ -165,7 +165,7 @@ def _text_to_token_vector(text):
     text_words = [w.replace("\\", "'") for w in text_words]
 
     # Create a substitution list for all identifiable words (excluding the special characters)
-    text_replace_word = [[w, ''] if len(re.sub('[^A-Za-z0-9]+', '', w)) > 0 else [] for w in text_words]
+    text_replace_word = [[w, ''] if len(re.sub(r'\W+', '', w)) > 0 else [] for w in text_words]
 
     # This is a dictionary which keys are the original word position and values are the possible replacement
     change_vector_links = {idx: [*range(len(subs))] for idx, subs in enumerate(text_replace_word) if len(subs) > 0}
@@ -200,7 +200,7 @@ def _text_to_change_vector(text):
         nltk.download('omw-1.4')
     try:
         nltk.data.find('taggers/averaged_perceptron_tagger')
-    except:
+    except LookupError:
         nltk.download('averaged_perceptron_tagger')
 
     # First, make text lowercase
@@ -247,7 +247,7 @@ def _change_vector_to_text(input_change_vector, text_words, change_vector, text_
     # It can be a pandas DataFrame or numpy
     if type(input_change_vector) == pd.DataFrame:
         change_coordinates = list(input_change_vector.iloc[0][input_change_vector.iloc[0] == 1].index)
-        change_coordinates = [[0]*len(change_coordinates), change_coordinates]
+        change_coordinates = [[0] * len(change_coordinates), change_coordinates]
     else:
         change_coordinates = list(np.where(input_change_vector))
         change_coordinates[1] = [change_vector.columns[ci] for ci in change_coordinates[1]]
@@ -256,7 +256,7 @@ def _change_vector_to_text(input_change_vector, text_words, change_vector, text_
         i_text, d_text = change_coordinates[0][idx_cv], change_coordinates[1][idx_cv]
 
         # Word index, Change index
-        idx_w, idx_c = [int(x) for x in d_text.split('_')]
+        idx_w, idx_c = [int(x) for x in str(d_text).split('_')]
 
         # If change index is 0, do not make any alterations since it's the original word
         if idx_c != 0:
