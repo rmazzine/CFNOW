@@ -5,6 +5,7 @@ import os
 import re
 import copy
 import pickle
+import warnings
 from collections import defaultdict
 
 import pandas as pd
@@ -219,7 +220,7 @@ def _text_to_change_vector(text):
 
     # If there's no antonyms, return warning
     if max([len(t) for t in text_antonyms]) == 0:
-        raise Exception('No antonym was found in the phrase')
+        warnings.warn('No word with antonym was found in the input text')
 
     # Now, for the replacement words, create a function that creates a vector, which initially represents the
     # factual phrase and can also represent replaced results.
