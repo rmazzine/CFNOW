@@ -311,7 +311,7 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
     return cf_try
 
 
-def _super_sedc(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
+def _greedy_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
                 increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose):
     """
         This algorithm makes sequential changes which will better increase the score to find a CF

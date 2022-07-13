@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 import cv2
 
-from ._cf_searchers import _random_generator, _super_sedc
+from ._cf_searchers import _random_generator, _greedy_generator
 from ._checkers import _check_factual, _check_vars, _check_prob_func
 from ._data_standardizer import _get_ohe_params, _seg_to_img, _text_to_change_vector, _text_to_token_vector, \
     _convert_change_vectors_func
@@ -169,7 +169,7 @@ def find_tabular(factual, model_predict_proba, feat_types=None, cf_strategy='gre
     if cf_strategy == 'random':
         cf_finder = _random_generator
     elif cf_strategy == 'greedy':
-        cf_finder = _super_sedc
+        cf_finder = _greedy_generator
     if cf_finder is None:
         raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
 
@@ -331,7 +331,7 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
         if avoid_back_original is None:
             avoid_back_original = False
     elif cf_strategy == 'greedy':
-        cf_finder = _super_sedc
+        cf_finder = _greedy_generator
         if it_max is None:
             it_max = 1000
         if ft_it_max is None:
@@ -526,7 +526,7 @@ def find_text(text_input, textual_classifier, word_replace_strategy='remove', cf
     if cf_strategy == 'random':
         cf_finder = _random_generator
     elif cf_strategy == 'greedy':
-        cf_finder = _super_sedc
+        cf_finder = _greedy_generator
     if cf_finder is None:
         raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
 
