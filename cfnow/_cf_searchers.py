@@ -27,7 +27,7 @@ def _create_change_matrix(factual, feat_types, ohe_indexes):
 
     # Create identity matrix for each type of variable
     arr_changes_cat_bin = np.eye(len(factual))[list(set(indexes_cat) - set(ohe_indexes))]
-    arr_changes_cat_ohe = np.eye(len(factual))
+    arr_changes_cat_ohe = np.eye(len(factual))[ohe_indexes]
     arr_changes_num = np.eye(len(factual))[indexes_num]
 
     return indexes_cat, indexes_num, arr_changes_cat_bin, arr_changes_cat_ohe, arr_changes_num
