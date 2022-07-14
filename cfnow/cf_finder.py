@@ -107,10 +107,11 @@ class _CFText(_CFBaseResponse):
         # Remove entries that are not considered (which does not have any word)
         text_replace_valid = np.array([t for t in text_replace if len(t) > 0])
 
-        replaced_feats_idx = np.where(self.factual_vector != self.cf_vector)[0][::2]
+        replaced_feats_idx = [int(wi/2) for wi in np.where(self.factual_vector != self.cf_vector)[0][::2]]
         self.cf_replaced_words = [w[0] for w in text_replace_valid[replaced_feats_idx]]
 
-        replaced_not_optimized_feats_idx = np.where(self.factual_vector != self.cf_not_optimized_vector)[0][::2]
+        replaced_not_optimized_feats_idx = [int(wi/2) for wi in
+                                            np.where(self.factual_vector != self.cf_not_optimized_vector)[0][::2]]
         self.cf_not_optimized_replaced_words = [w[0] for w in text_replace_valid[replaced_not_optimized_feats_idx]]
 
 
