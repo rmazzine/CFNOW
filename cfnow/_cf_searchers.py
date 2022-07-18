@@ -70,16 +70,8 @@ def _count_subarray(sa):
     return sum([len(s) for s in sa])
 
 
-def _generate_random_changes_all_possibilities(n_changes, pc_idx_ohe, pc_idx_nup, pc_idx_ndw, num_placeholders,
-                                               change_feat_options, ohe_placeholders, ohe_placeholder_to_change_idx,
-                                               num_placeholder_to_change_idx):
-    # In this case, there are few modifications, so we will calculate all combinations
-
-    # Calculate all possible combinations
-    idx_comb_changes = [*combinations(change_feat_options, n_changes)]
-
-    # Now, each time a OHE feature is modified, consider all possible modifications
-    update_placeholder = [list(icc) for icc in idx_comb_changes]
+def _replace_ohe_placeholders(update_placeholder, ohe_placeholders, ohe_placeholder_to_change_idx, pc_idx_ohe):
+    # This function replace the OHE placeholders (like 'ohe_1') to actual changes
     for ohp in ohe_placeholders:
         updating_placeholder = []
         # For each index combination changes in the update placeholder variable
@@ -95,6 +87,13 @@ def _generate_random_changes_all_possibilities(n_changes, pc_idx_ohe, pc_idx_nup
                 updating_placeholder.append(icc)
         # Update for next iteration
         update_placeholder = updating_placeholder
+
+    return update_placeholder
+
+
+def _replace_num_placeholders(update_placeholder, num_placeholders, num_placeholder_to_change_idx,
+                              pc_idx_nup, pc_idx_ndw):
+    # This function replace the numerical placeholders (like 'num_1') to actual changes
 
     # For each numerical feature changed, add the two possible modifications (increase and decrease)
     for nmp in num_placeholders:
@@ -117,9 +116,51 @@ def _generate_random_changes_all_possibilities(n_changes, pc_idx_ohe, pc_idx_nup
         # Update for next iteration
         update_placeholder = updating_placeholder
 
-    changes_idx = update_placeholder
+    return update_placeholder
+
+
+def _generate_random_changes_all_possibilities(n_changes, pc_idx_ohe, pc_idx_nup, pc_idx_ndw, num_placeholders,
+                                               change_feat_options, ohe_placeholders, ohe_placeholder_to_change_idx,
+                                               num_placeholder_to_change_idx):
+    # This function generates all possible (and valid) combination between features.
+    # This is not a straightforward problem since OHE and numeric (up and down) changes have some specificities:
+    # For OHE: You cannot select a same category OHE in a single change. For Numeric: Similar as selecting UP and DOWN
+    # would result in an 0 change
+
+    # Calculate all possible combinations
+    idx_comb_changes = [*combinations(change_feat_options, n_changes)]
+
+    # Now, each time a OHE feature is modified, consider all possible modifications
+    update_placeholder = [list(icc) for icc in idx_comb_changes]
+
+    # Replace OHE placeholders
+    update_placeholder = _replace_ohe_placeholders(update_placeholder, ohe_placeholders,
+                                                   ohe_placeholder_to_change_idx, pc_idx_ohe)
+    # Replace numerical placeholders
+    changes_idx = _replace_num_placeholders(update_placeholder, num_placeholders, num_placeholder_to_change_idx,
+                                            pc_idx_nup, pc_idx_ndw)
 
     return changes_idx
+
+
+def _create_random_changes(sample_features, ohe_placeholders, num_placeholders, ohe_placeholder_to_change_idx,
+                           num_placeholder_to_change_idx, pc_idx_ohe, pc_idx_nup, pc_idx_ndw):
+    # This function creates, randomly, changes based on numerical and OHE placeholders (since it can have more than
+    # a single modification). For binary, since there's only one possible change, we just append the modification.
+
+    # Create modifications for OHE, numerical and binary features
+    change_idx_row = []
+    for sf in sample_features:
+        if sf in ohe_placeholders:
+            ohp_indexes = ohe_placeholder_to_change_idx[sf]
+            change_idx_row.append(np.random.choice(pc_idx_ohe[ohp_indexes[0]:ohp_indexes[1]], 1)[0])
+        elif sf in num_placeholders:
+            nmp_index = num_placeholder_to_change_idx[sf]
+            change_idx_row.append(np.random.choice([pc_idx_nup[nmp_index], pc_idx_ndw[nmp_index]]))
+        else:
+            change_idx_row.append(sf)
+
+    return set(change_idx_row)
 
 
 def _generate_random_changes_sample_possibilities(n_changes, pc_idx_ohe, pc_idx_nup, pc_idx_ndw, num_placeholders,
@@ -148,18 +189,10 @@ def _generate_random_changes_sample_possibilities(n_changes, pc_idx_ohe, pc_idx_
         if len(set(sample_features_not_num)) != len(sample_features_not_num):
             continue
 
-        # Create modifications for OHE, numerical and binary features
-        change_idx_row = []
-        for sf in sample_features:
-            if sf in ohe_placeholders:
-                ohp_indexes = ohe_placeholder_to_change_idx[sf]
-                change_idx_row.append(np.random.choice(pc_idx_ohe[ohp_indexes[0]:ohp_indexes[1]], 1)[0])
-            elif sf in num_placeholders:
-                nmp_index = num_placeholder_to_change_idx[sf]
-                change_idx_row.append(np.random.choice([pc_idx_nup[nmp_index], pc_idx_ndw[nmp_index]]))
-            else:
-                change_idx_row.append(sf)
-        set_change_idx_row = set(change_idx_row)
+        set_change_idx_row = _create_random_changes(
+            sample_features, ohe_placeholders, num_placeholders, ohe_placeholder_to_change_idx,
+            num_placeholder_to_change_idx, pc_idx_ohe, pc_idx_nup, pc_idx_ndw)
+
         tries_gen += 1
         if set_change_idx_row not in changes_idx:
             changes_idx.append(set_change_idx_row)
@@ -167,6 +200,35 @@ def _generate_random_changes_sample_possibilities(n_changes, pc_idx_ohe, pc_idx_
     changes_idx = [[int(ci) for ci in c] for c in changes_idx]
 
     return changes_idx
+
+
+def _calc_num_possible_changes(change_feat_options, num_placeholders, ohe_placeholders, ohe_placeholder_to_change_idx,
+                               threshold_changes, n_changes):
+    # Calculate the number of possible change combinations
+    n_comb_base = math.comb(len(change_feat_options), n_changes)
+
+    # The number of possible modifications can be larger than the previous calculated, since for each OHE
+    # and numerical feature, there are more than one possible change (for OHE depends on the feature values and
+    # for numerical can be up or down). Therefore, if the number of combinations is below the threshold,
+    # these situations must be checked to have a precise calculation of the possible modifications number.
+    if n_comb_base <= threshold_changes:
+        idx_comb_changes = [*combinations(change_feat_options, n_changes)]
+        corrected_num_changes = 0
+        for icc in idx_comb_changes:
+            comb_rows = [1]
+            for ohp in ohe_placeholders:
+                if ohp in icc:
+                    idx_ohe_min, idx_ohe_max = ohe_placeholder_to_change_idx[ohp]
+                    comb_rows.append(idx_ohe_max - idx_ohe_min)
+            for nmp in num_placeholders:
+                if nmp in icc:
+                    comb_rows.append(2)
+            corrected_num_changes += np.prod(comb_rows)
+    else:
+        # The sample will be 1 above the limit threshold
+        corrected_num_changes = threshold_changes + 1
+
+    return corrected_num_changes
 
 
 def _generate_random_changes(changes_cat_bin, changes_cat_ohe, changes_num_up,
@@ -201,29 +263,8 @@ def _generate_random_changes(changes_cat_bin, changes_cat_ohe, changes_num_up,
     # All possible changes
     change_feat_options = pc_idx_bin + num_placeholders + ohe_placeholders
 
-    # Calculate the number of possible change combinations
-    n_comb_base = math.comb(len(change_feat_options), n_changes)
-
-    # The number of possible modifications can be larger than the previous calculated, since for each OHE
-    # and numerical feature, there are more than one possible change (for OHE depends on the feature values and
-    # for numerical can be up or down). Therefore, if the number of combinations is below the threshold,
-    # these situations must be checked to have a precise calculation of the possible modifications number.
-    if n_comb_base <= threshold_changes:
-        idx_comb_changes = [*combinations(change_feat_options, n_changes)]
-        corrected_num_changes = 0
-        for icc in idx_comb_changes:
-            comb_rows = [1]
-            for ohp in ohe_placeholders:
-                if ohp in icc:
-                    idx_ohe_min, idx_ohe_max = ohe_placeholder_to_change_idx[ohp]
-                    comb_rows.append(idx_ohe_max - idx_ohe_min)
-            for nmp in num_placeholders:
-                if nmp in icc:
-                    comb_rows.append(2)
-            corrected_num_changes += np.prod(comb_rows)
-    else:
-        # The sample will be 1 above the limit threshold
-        corrected_num_changes = threshold_changes + 1
+    corrected_num_changes = _calc_num_possible_changes(change_feat_options, num_placeholders, ohe_placeholders,
+                                                       ohe_placeholder_to_change_idx, threshold_changes, n_changes)
 
     if corrected_num_changes <= threshold_changes:
         changes_idx = _generate_random_changes_all_possibilities(
