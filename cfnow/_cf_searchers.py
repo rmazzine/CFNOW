@@ -55,8 +55,11 @@ def _create_factual_changes(cf_try, ohe_list, ft_change_factor, add_momentum,  a
     changes_cat_bin = arr_changes_cat_bin * (1 - 2 * cf_try)
     # Changes for OHE
     changes_cat_ohe_list, changes_cat_ohe = _create_ohe_changes(cf_try, ohe_list, arr_changes_cat_ohe)
+    # The array below is intended to label positive feature numbers as 1 and negative as -1
+    # This has the utility for momentum since for negative numbers, the momentum must be negative
+    num_direction_change = (cf_try > 0).astype(float)-(cf_try < 0).astype(float)
     # For numerical up - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
-    changes_num_up = arr_changes_num * ft_change_factor * cf_try + arr_changes_num * add_momentum
+    changes_num_up = arr_changes_num * ft_change_factor * cf_try + num_direction_change*arr_changes_num * add_momentum
     # For numerical down - HERE, NUMBERS WHICH ARE ZERO WILL REMAIN ZERO
     changes_num_down = -copy.copy(changes_num_up)
 
