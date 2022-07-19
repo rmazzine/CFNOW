@@ -209,22 +209,37 @@ def _calc_num_possible_changes(change_feat_options, num_placeholders, ohe_placeh
     # Calculate the number of possible change combinations
     n_comb_base = math.comb(len(change_feat_options), n_changes)
 
-    # The number of possible modifications can be larger than the previous calculated, since for each OHE
+    # The number of possible modifications can be larger than the previous calculated (n_comb_base), since for each OHE
     # and numerical feature, there are more than one possible change (for OHE depends on the feature values and
-    # for numerical can be up or down). Therefore, if the number of combinations is below the threshold,
-    # these situations must be checked to have a precise calculation of the possible modifications number.
+    # for numerical can be up or down). Therefore, if the number of combinations initially calculated (n_comb_base)
+    # is below the threshold, another calculation must be done to get the corrected number of possible
+    # changes (corrected_num_changes) considering the OHE and numeric features previously mentioned.
+    # Example:
+    # - Two binary features (b1, b2): There's only 1 possible combination = (b1, b2)
+    # - One binary (b1) and one OHE (o1) with three possible values (o1_1, o1_2, o1_3): There are 3 possible
+    # combinations = (b1, o1_1), (b1, o1_2), (b1, o1_3)
+    # - One OHE (o1) with three possible values (o1_1, o1_2, o1_3) and one numerical (n1) with up and
+    # down (n1_u, n1_d): There are 6 possible combinations: (o1_1, n1_u), (o1_1, n1_d), (o1_2, n1_u), (o1_2, n1_d),
+    # (o1_3, n1_u), (o1_3, n1_d)
     if n_comb_base <= threshold_changes:
+        # First we get all possible combinations with the features for a certain number of n_changes
         idx_comb_changes = [*combinations(change_feat_options, n_changes)]
         corrected_num_changes = 0
         for icc in idx_comb_changes:
+            # Initially we consider there's only one possibility of combination: this will only
+            # happen for two binary features
             comb_rows = [1]
             for ohp in ohe_placeholders:
+                # For each OHE feature, we add to the comb_rows the number of possible values
                 if ohp in icc:
                     idx_ohe_min, idx_ohe_max = ohe_placeholder_to_change_idx[ohp]
                     comb_rows.append(idx_ohe_max - idx_ohe_min)
             for nmp in num_placeholders:
                 if nmp in icc:
+                    # For each numeric feature, we consider 2 possible cases: up and down
                     comb_rows.append(2)
+            # Then, after scanning all features in a single change (icc), we calculate the number of
+            # derived modifications by multiplying the items inside comb_rows
             corrected_num_changes += np.prod(comb_rows)
     else:
         # The sample will be 1 above the limit threshold
