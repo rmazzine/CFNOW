@@ -185,6 +185,7 @@ def _generate_random_changes_sample_possibilities(n_changes, pc_idx_ohe, pc_idx_
 
         # OHE and binary cannot be selected two times
         # Then, considering the set of changes without num_, the set must be the same size of the list
+        # This allows numerical features to be added (or subtracted) several times
         sample_features_not_num = [sf for sf in sample_features if 'num_' not in str(sf)]
         if len(set(sample_features_not_num)) != len(sample_features_not_num):
             continue
