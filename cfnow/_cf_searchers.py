@@ -175,11 +175,13 @@ def _generate_random_changes_sample_possibilities(n_changes, pc_idx_ohe, pc_idx_
     # Some suggested changes can be invalid because they are repeated or select the same OHE and numerical
     # features two times, therefore, we define the variable below to give chances to repeat the generation
     # process trying to get a different change set
-    tries_gen = 1
+    tries_gen = 0
 
     # While the number of changes is not equal to sample size and the number of tries
     # (to generate unique change sets) was not reached
     while len(changes_idx) < threshold_changes and tries_gen < threshold_changes * 2:
+        tries_gen += 1
+
         # TODO: Change the choice process to not take the same numeric of OHE feature two times
         sample_features = np.random.choice(change_feat_options, n_changes)
 
@@ -194,7 +196,6 @@ def _generate_random_changes_sample_possibilities(n_changes, pc_idx_ohe, pc_idx_
             sample_features, ohe_placeholders, num_placeholders, ohe_placeholder_to_change_idx,
             num_placeholder_to_change_idx, pc_idx_ohe, pc_idx_nup, pc_idx_ndw)
 
-        tries_gen += 1
         if set_change_idx_row not in changes_idx:
             changes_idx.append(set_change_idx_row)
 
