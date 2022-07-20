@@ -413,6 +413,9 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
             # Identify which index had the best performance towards objective, it will take the first best
             best_arg = np.argmax(prob_cf_candidates)
 
+            # TODO: By sequentially modifying the outcome with the best argument, we introduce a bias for the
+            #  CF search, then, a non-biased methodology would simply not change by the best, but just go to
+            #  the next step with more modifications.
             # Update CF try
             cf_try = cf_try + random_changes[best_arg]
 
