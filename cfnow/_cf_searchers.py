@@ -378,19 +378,10 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
                 changes_cat_bin, changes_cat_ohe, changes_num_up, changes_num_down, ohe_list,
                 n_changes, threshold_changes)
 
-            # If the number of changes is 0, skip to next iteration
-            if len(changes_idx) == 0:
-                continue
-
             # Below ensures OHE will not be incorrectly summed
             # (we cannot sum the change of two OHE in the same category)
             random_changes = np.array([np.sum(possible_changes[r, :], axis=0) for r in changes_idx if
                                        sum([_ohe_detector(r, ic) for ic in ohe_list]) == 0])
-
-            # TODO: This can be improved by instead returning the best result, continue the iterations
-            # If there are no random changes, return best result
-            if len(random_changes) == 0:
-                return cf_try
 
             # if the Tabu list is larger than zero
             if len(tabu_list) > 0:
@@ -399,10 +390,9 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
                 idx_to_remove = np.where(np.abs(random_changes[:, forbidden_indexes]) != 0)[0]
                 random_changes = np.delete(random_changes, idx_to_remove, axis=0)
 
-            # TODO: This can be improved by instead returning the best result, continue the iterations
-            # If, after removing, there's no changes, return CF
+            # Continue if there's no random change
             if len(random_changes) == 0:
-                return cf_try
+                continue
 
             # Create array with CF candidates
             cf_candidates = cf_try + random_changes
