@@ -620,6 +620,7 @@ def _greedy_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
             if sum(recent_improvements) < 0.001:
                 add_momentum += 1
             else:
+                # If the improvement was larger than the threshold, the momentum is removed
                 add_momentum = 0
 
         # Update number of tries
