@@ -464,9 +464,23 @@ def _generate_greedy_changes(factual, cf_try, tabu_list, changes_cat_bin, change
 
     # If the flag to back to original is set, then, remove all changes that make the result back to original values
     if avoid_back_original:
-        n_same_cf_try = (cf_try == factual).sum()
-        n_same_changes = ((changes+cf_try) == factual[0]).sum(axis=1)
-        idx_same_drop = np.where(n_same_changes >= n_same_cf_try)[0]
+        # The values that are equal to the original can remain the same,
+        # however, modified values cannot be back to original, this creates the following logical table:
+        #
+        # True => Equal to original / False => Not equal to original.
+        #
+        # Current Counterfactual | Modified Counterfactual | Allowed? (interpretation
+        #        True            |        False            |    YES (the feature was modified)
+        #        True            |        True             |    YES (the feature was not modified and remain the same)
+        #        False           |         True            |    NO  (the feature was modified back to original)
+        #        False           |         False           |    YES (the feature was modified and still modified)
+        #
+        # Then, the following logical expression is used
+        # AND( XOR(same_current_cf, modified_cf), modified_cf)
+        same_current_cf = (cf_try == factual).to_numpy()
+        modified_cf = ((changes+cf_try) == factual.to_numpy())
+        value_back_to_original = np.logical_and(np.logical_xor(same_current_cf, modified_cf), modified_cf)
+        idx_same_drop = np.where(value_back_to_original.sum(axis=1))[0]
         changes = np.delete(changes, idx_same_drop, axis=0)
 
     # Drop all zero rows
