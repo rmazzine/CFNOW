@@ -115,9 +115,21 @@ class _CFText(_CFBaseResponse):
         self.cf_not_optimized_replaced_words = [w[0] for w in text_replace_valid[replaced_not_optimized_feats_idx]]
 
 
-def find_tabular(factual, model_predict_proba, feat_types=None, cf_strategy='greedy', increase_threshold=0, it_max=1000,
-                 limit_seconds=120, ft_change_factor=0.1, ft_it_max=1000, size_tabu=5, ft_threshold_distance=0.01,
-                 has_ohe=False, avoid_back_original=False, verbose=False):
+def find_tabular(
+        factual: pd.Series,
+        model_predict_proba,
+        feat_types: dict = None,
+        cf_strategy: str = 'greedy',
+        increase_threshold: int = 0,
+        it_max: int = 1000,
+        limit_seconds: int = 120,
+        ft_change_factor: float = 0.1,
+        ft_it_max: int = 1000,
+        size_tabu: int = 5,
+        ft_threshold_distance: float = 0.01,
+        has_ohe: bool = False,
+        avoid_back_original: bool = False,
+        verbose: bool = False) -> _CFTabular:
     """
     For a factual tabular point and prediction model, finds a counterfactual explanation
     :param factual: The factual point as Pandas DataFrame
@@ -266,10 +278,23 @@ def find_tabular(factual, model_predict_proba, feat_types=None, cf_strategy='gre
     return response_obj
 
 
-def find_image(img, model_predict, segmentation='quickshift', params_segmentation=None, replace_mode='blur',
-               img_cf_strategy='nonspecific', cf_strategy='greedy', increase_threshold=-1, it_max=None,
-               limit_seconds=120, ft_change_factor=0.1, ft_it_max=None, size_tabu=None, ft_threshold_distance=0.01,
-               avoid_back_original=None, verbose=False):
+def find_image(
+        img: np.ndarray,
+        model_predict,
+        segmentation: str = 'quickshift',
+        params_segmentation: dict = None,
+        replace_mode: str = 'blur',
+        img_cf_strategy: str = 'nonspecific',
+        cf_strategy: str = 'greedy',
+        increase_threshold: int = -1,
+        it_max: int = None,
+        limit_seconds: int = 120,
+        ft_change_factor: float = 0.1,
+        ft_it_max: int = None,
+        size_tabu: int = None,
+        ft_threshold_distance: float = 0.01,
+        avoid_back_original: bool = None,
+        verbose: bool = False) -> _CFImage:
     """
     For an image input and prediction model, finds a counterfactual explanation
     :param img: The original image to be explained
@@ -478,9 +503,20 @@ def find_image(img, model_predict, segmentation='quickshift', params_segmentatio
     return response_obj
 
 
-def find_text(text_input, textual_classifier, word_replace_strategy='remove', cf_strategy='greedy',
-              increase_threshold=-1, it_max=1000, limit_seconds=120, ft_change_factor=0.1, ft_it_max=1000,
-              size_tabu=None, ft_threshold_distance=0.01, avoid_back_original=False, verbose=False):
+def find_text(
+        text_input: str,
+        textual_classifier,
+        word_replace_strategy: str = 'remove',
+        cf_strategy: str = 'greedy',
+        increase_threshold: int = -1,
+        it_max: int = 1000,
+        limit_seconds: int = 120,
+        ft_change_factor: float = 0.1,
+        ft_it_max: int = 1000,
+        size_tabu: int = None,
+        ft_threshold_distance: float = 0.01,
+        avoid_back_original: bool = False,
+        verbose: bool = False) -> _CFText:
     """
     For a text input and prediction model, finds a counterfactual explanation
     :param text_input: The original text to be explained
