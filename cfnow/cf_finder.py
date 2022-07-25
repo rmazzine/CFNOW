@@ -371,7 +371,7 @@ def find_image(
     if segmentation == 'quickshift':
         segments = gen_quickshift(img, params_segmentation)
     else:
-        raise AttributeError(f'cf_strategy must be "quickshift" and not {segmentation}')
+        raise AttributeError(f'segmentation must be "quickshift" and not {segmentation}')
 
     # Then we create the image to be replaced (considered 0)
     if replace_mode == 'mean':
