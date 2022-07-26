@@ -621,6 +621,13 @@ def find_text(
     if size_tabu is None:
         size_tabu = int(len(ohe_list)/2)
 
+    # If Tabu size list is larger than the number of segments issue a warning and reduce to size_features - 1
+    if len(factual) < size_tabu:
+        size_tabu_new = len(ohe_list) - 1
+        warnings.warn(f'The number of features ({len(factual)}) is lower than the Tabu list size ({size_tabu}),'
+                      f'then, we reduced to the number of features minus 1 (={size_tabu_new})')
+        size_tabu = size_tabu_new
+
     # Generate CF using a CF finder
     cf_out = cf_finder(cf_data_type=cf_data_type,
                        factual=factual.iloc[0],
