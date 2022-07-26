@@ -603,7 +603,7 @@ def find_text(
                         f'factual input. This happens because during the encoding process, the text structure '\
                         f'could not be reproduced with 100% fidelity (e.g., extra commas were removed). '
         # If the class is the same, no problem:
-        if adjusted_encoded_classification > 0.5 == original_text_classification > 0.5:
+        if (adjusted_encoded_classification > 0.5) == (original_text_classification > 0.5):
             log_warn_text += f'This should not be a problem since the classification still the same:\n'
         else:
             # If we had a class change, then the CF is the modification already done
