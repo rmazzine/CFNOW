@@ -578,7 +578,7 @@ def find_text(
     elif word_replace_strategy == 'antonyms':
         text_words, change_vector, text_replace = _text_to_change_vector(text_input)
     else:
-        raise AttributeError(f'word_replace_strategy must be "antonyms" and not {word_replace_strategy}')
+        raise AttributeError(f'word_replace_strategy must be "antonyms" or "remove" and not {word_replace_strategy}')
 
     converter = _convert_change_vectors_func(text_words, change_vector, text_replace)
     factual = copy.copy(change_vector)
