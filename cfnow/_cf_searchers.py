@@ -383,8 +383,8 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
             random_changes = np.array([np.sum(possible_changes[r, :], axis=0) for r in changes_idx if
                                        sum([_ohe_detector(r, ic) for ic in ohe_list]) == 0])
 
-            # if the Tabu list is larger than zero
-            if len(tabu_list) > 0:
+            # if there are random changes and the Tabu list is larger than zero
+            if (len(random_changes) > 0) and (len(tabu_list) > 0):
                 # Remove all rows which the sum of absolute change vector partition is larger than zero
                 forbidden_indexes = [item for sublist in tabu_list for item in sublist]
                 idx_to_remove = np.where(np.abs(random_changes[:, forbidden_indexes]) != 0)[0]
