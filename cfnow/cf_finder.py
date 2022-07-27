@@ -622,9 +622,9 @@ def find_text(
         size_tabu = int(len(ohe_list)/2)
 
     # If Tabu size list is larger than the number of segments issue a warning and reduce to size_features - 1
-    if len(factual) < size_tabu:
+    if len(ohe_list) < size_tabu:
         size_tabu_new = len(ohe_list) - 1
-        warnings.warn(f'The number of features ({len(factual)}) is lower than the Tabu list size ({size_tabu}),'
+        warnings.warn(f'The number of features ({len(ohe_list)}) is lower than the Tabu list size ({size_tabu}),'
                       f'then, we reduced to the number of features minus 1 (={size_tabu_new})')
         size_tabu = size_tabu_new
 

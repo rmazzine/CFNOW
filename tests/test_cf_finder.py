@@ -526,6 +526,60 @@ class TestScriptBase(unittest.TestCase):
     @patch('cfnow.cf_finder.warnings')
     @patch('cfnow.cf_finder._greedy_generator')
     @patch('cfnow.cf_finder._random_generator')
+    def test_find_tabular_size_tabu_lower(
+            self, mock_random_generator, mock_greedy_generator, mock_warnings, mock_check_factual, mock_check_vars,
+            mock_check_prob_func, mock_standardize_predictor, mock_adjust_model_class, mock_get_ohe_params,
+            mock_datetime, mock_logging, mock_fine_tuning, mock_CFTabular):
+        factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
+                             'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
+        model_predict_proba = MagicMock()
+        feat_types = {'num1': 'num', 'num2': 'num', 'ohe1_0': 'cat', 'ohe1_1': 'cat', 'ohe1_2': 'cat',
+                      'bin1': 'cat', 'bin2': 'cat', 'ohe2_0': 'cat', 'ohe2_1': 'cat', 'ohe2_2': 'cat'}
+        cf_strategy = 'greedy'
+        increase_threshold = 0
+        it_max = 1000
+        limit_seconds = 120
+        ft_change_factor = 0.1
+        ft_it_max = 1000
+        size_tabu = 4
+        ft_threshold_distance = 0.01
+        has_ohe = False
+        avoid_back_original = False
+        verbose = False
+
+        mock_get_ohe_params.return_value = [[2, 3, 4], [7, 8, 9]], [2, 3, 4, 7, 8, 9]
+
+        cf_out = np.array([-25, 10, 0, 1, 0, 1, 1, 0, 1, 0])
+        mock_random_generator.return_value = cf_out
+        mock_greedy_generator.return_value = cf_out
+
+        mock_mp1c = MagicMock()
+        mock_mp1c.return_value = [1.0]
+        mock_adjust_model_class.return_value = mock_mp1c
+
+        response_obj = find_tabular(factual, model_predict_proba, feat_types, cf_strategy, increase_threshold, it_max,
+                                    limit_seconds, ft_change_factor, ft_it_max, size_tabu, ft_threshold_distance,
+                                    has_ohe, avoid_back_original, verbose)
+
+        # Assert warning is not raised
+        mock_warnings.warn.assert_not_called()
+
+        self.assertEqual(mock_greedy_generator.call_args[1]['size_tabu'], 4)
+        self.assertEqual(mock_fine_tuning.call_args[1]['size_tabu'], 4)
+
+    @patch('cfnow.cf_finder._CFTabular')
+    @patch('cfnow.cf_finder._fine_tuning')
+    @patch('cfnow.cf_finder.logging')
+    @patch('cfnow.cf_finder.datetime')
+    @patch('cfnow.cf_finder._get_ohe_params')
+    @patch('cfnow.cf_finder._adjust_model_class')
+    @patch('cfnow.cf_finder._standardize_predictor')
+    @patch('cfnow.cf_finder._check_prob_func')
+    @patch('cfnow.cf_finder._check_vars')
+    @patch('cfnow.cf_finder._check_factual')
+    @patch('cfnow.cf_finder.warnings')
+    @patch('cfnow.cf_finder._greedy_generator')
+    @patch('cfnow.cf_finder._random_generator')
     def test_find_tabular_size_tabu_larger(
             self, mock_random_generator, mock_greedy_generator, mock_warnings, mock_check_factual, mock_check_vars,
             mock_check_prob_func, mock_standardize_predictor, mock_adjust_model_class, mock_get_ohe_params,
@@ -1161,6 +1215,66 @@ class TestScriptBase(unittest.TestCase):
                        img_cf_strategy, cf_strategy, increase_threshold, it_max, limit_seconds,
                        ft_change_factor, ft_it_max, size_tabu, ft_threshold_distance, avoid_back_original,
                        verbose)
+
+    @patch('cfnow.cf_finder._CFImage')
+    @patch('cfnow.cf_finder._seg_to_img')
+    @patch('cfnow.cf_finder._fine_tuning')
+    @patch('cfnow.cf_finder.logging')
+    @patch('cfnow.cf_finder.datetime')
+    @patch('cfnow.cf_finder._adjust_multiclass_second_best')
+    @patch('cfnow.cf_finder._adjust_multiclass_nonspecific')
+    @patch('cfnow.cf_finder._adjust_image_model')
+    @patch('cfnow.cf_finder.warnings')
+    @patch('cfnow.cf_finder.gen_quickshift')
+    @patch('cfnow.cf_finder._greedy_generator')
+    @patch('cfnow.cf_finder._random_generator')
+    def test_find_image_size_tabu_larger(
+            self, mock_random_generator, mock_greedy_generator, mock_gen_quickshift, mock_warnings,
+            mock_adjust_image_model, mock_adjust_multiclass_nonspecific, mock_adjust_multiclass_second_best,
+            mock_datetime, mock_logging, mock_fine_tuning, mock_seg_to_img, mock_CFImage):
+
+        img = self.cf_img_default_img
+        mock_model_predict = self.cf_img_default_mock_model_predict
+        segmentation = self.cf_img_default_segmentation
+        params_segmentation = self.cf_img_default_params_segmentation
+        replace_mode = self.cf_img_default_replace_mode
+        img_cf_strategy = self.cf_img_default_img_cf_strategy
+        cf_strategy = self.cf_img_default_cf_strategy
+        increase_threshold = self.cf_img_default_increase_threshold
+        it_max = self.cf_img_default_it_max
+        limit_seconds = self.cf_img_default_limit_seconds
+        ft_change_factor = self.cf_img_default_ft_change_factor
+        ft_it_max = self.cf_img_default_ft_it_max
+
+        size_tabu = 1
+
+        ft_threshold_distance = self.cf_img_default_ft_threshold_distance
+        avoid_back_original = self.cf_img_default_avoid_back_original
+        verbose = self.cf_img_default_verbose
+
+        factual = self.cf_img_default_factual
+        segments = self.cf_img_default_segments
+        replace_img = self.cf_img_default_replace_img
+
+        mock_gen_quickshift.return_value = self.cf_img_default_segments
+
+        mock_mimns = MagicMock()
+        mock_mimns.return_value = [1.0]
+
+        mock_adjust_multiclass_nonspecific.return_value = mock_mimns
+        mock_adjust_multiclass_second_best.return_value = mock_mimns
+
+        response_obj = find_image(img, mock_model_predict, segmentation, params_segmentation, replace_mode,
+                                  img_cf_strategy, cf_strategy, increase_threshold, it_max, limit_seconds,
+                                  ft_change_factor, ft_it_max, size_tabu, ft_threshold_distance, avoid_back_original,
+                                  verbose)
+
+        # Assert warning is not raised
+        mock_warnings.warn.assert_not_called()
+
+        # Verify if Tabu is the length of the segments minus 1 (1)
+        self.assertEqual(mock_greedy_generator.call_args[1]['size_tabu'], 1)
+        self.assertEqual(mock_fine_tuning.call_args[1]['size_tabu'], 1)
 
     @patch('cfnow.cf_finder._CFImage')
     @patch('cfnow.cf_finder._seg_to_img')
@@ -2121,6 +2235,84 @@ class TestScriptBase(unittest.TestCase):
 
         # Check if logging was called
         mock_logging.log.assert_called_once()
+
+    @patch('cfnow.cf_finder._CFText')
+    @patch('cfnow.cf_finder.warnings')
+    @patch('cfnow.cf_finder._fine_tuning')
+    @patch('cfnow.cf_finder._get_ohe_params')
+    @patch('cfnow.cf_finder.logging')
+    @patch('cfnow.cf_finder._standardize_predictor')
+    @patch('cfnow.cf_finder._adjust_textual_classifier')
+    @patch('cfnow.cf_finder._convert_change_vectors_func')
+    @patch('cfnow.cf_finder._text_to_change_vector')
+    @patch('cfnow.cf_finder._text_to_token_vector')
+    @patch('cfnow.cf_finder.datetime')
+    @patch('cfnow.cf_finder._greedy_generator')
+    @patch('cfnow.cf_finder._random_generator')
+    def test__find_text_tabu_lower(
+            self, mock_random_generator, mock_greedy_generator, mock_datetime, mock_text_to_token_vector,
+            mock_text_to_change_vector, mock_convert_change_vectors_func, mock_adjust_textual_classifier,
+            mock_standardize_predictor, mock_logging, mock_get_ohe_params, mock_fine_tuning, mock_warnings,
+            mock_CFText):
+        text_input = 'I like music'
+
+        def _textual_classifier_predict(array_txt_input):
+            if array_txt_input[0] == 'I like music':
+                return [0.0]
+            else:
+                return [1.0]
+
+        mock_textual_classifier = MagicMock()
+        mock_textual_classifier.side_effect = lambda x: _textual_classifier_predict(x)
+
+        word_replace_strategy = 'remove'
+        cf_strategy = 'greedy'
+        increase_threshold = -1
+        it_max = 1000
+        limit_seconds = 120
+        ft_change_factor = 0.1
+        ft_it_max = 1000
+
+        size_tabu = 2
+
+        ft_threshold_distance = 0.01
+        avoid_back_original = False
+        verbose = False
+
+        factual_df = pd.DataFrame([{'0_0': 1, '0_1': 0, '1_0': 1, '1_1': 0, '2_0': 1, '2_1': 0}])
+        mock_text_to_token_vector.return_value = (
+            ['I', 'like', 'music'],
+            factual_df,
+            [['I', ''], ['like', ''], ['music', '']])
+
+        def _mock_mts(factual):
+            if type(factual) == pd.DataFrame:
+                if np.array_equal(factual.to_numpy(), factual_df.to_numpy()):
+                    return [0.0]
+            if type(factual) == np.ndarray:
+                if np.array_equal(factual, factual_df.to_numpy()):
+                    return [0.0]
+
+            return [1.0]
+
+        mock_mts = MagicMock()
+        mock_mts.side_effect = _mock_mts
+
+        mock_standardize_predictor.return_value = mock_mts
+
+        mock_get_ohe_params.return_value = ([[0, 1], [2, 3], [4, 5]], [0, 1, 2, 3, 4, 5])
+
+        response_obj = find_text(
+            text_input, mock_textual_classifier, word_replace_strategy, cf_strategy, increase_threshold, it_max,
+            limit_seconds, ft_change_factor, ft_it_max, size_tabu, ft_threshold_distance, avoid_back_original,
+            verbose)
+
+        # Assert warning is not raised
+        mock_warnings.warn.assert_not_called()
+
+        # Check if Tabu list size is correct
+        self.assertEqual(mock_greedy_generator.call_args[1]['size_tabu'], 2)
+        self.assertEqual(mock_fine_tuning.call_args[1]['size_tabu'], 2)
 
     @patch('cfnow.cf_finder._CFText')
     @patch('cfnow.cf_finder.warnings')
