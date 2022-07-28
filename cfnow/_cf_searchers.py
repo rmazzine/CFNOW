@@ -313,7 +313,8 @@ def _random_generator_stop_conditions(cf_try_prob, iterations, ft_time, it_max, 
 
 
 def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-                      increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose):
+                      increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit,
+                      threshold_changes, verbose):
     """
     This algorithm takes a random strategy to find a minimal set of changes which change the classification prediction
 
@@ -335,14 +336,6 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
     :param verbose: Gives additional information about the process if true
     :return: A counterfactual or the best try to achieve it
     """
-
-    threshold_changes = 2000
-    if cf_data_type == 'tabular':
-        threshold_changes = 2000
-    if cf_data_type == 'image':
-        threshold_changes = 200
-    if cf_data_type == 'text':
-        threshold_changes = 500
 
     # Additional momentum to avoid being stuck in a minimum, starts with zero, however, if Tabu list is activated
     # and changes are not big, activate it
@@ -499,8 +492,9 @@ def _generate_greedy_changes(factual, cf_try, tabu_list, changes_cat_bin, change
     return changes
 
 
-def _greedy_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-                increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose):
+def _greedy_generator(
+        cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes, increase_threshold,
+        tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes, verbose):
     """
         This algorithm makes sequential changes which will better increase the score to find a CF
 

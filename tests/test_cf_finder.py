@@ -181,6 +181,7 @@ class TestScriptBase(unittest.TestCase):
     cf_img_default_size_tabu = None
     cf_img_default_ft_threshold_distance = 0.01
     cf_img_default_avoid_back_original = None
+    cf_img_default_threshold_changes = 1000
     cf_img_default_verbose = False
 
     cf_img_default_segments = np.array(cf_img_default_segments)
@@ -220,6 +221,7 @@ class TestScriptBase(unittest.TestCase):
         ft_threshold_distance = 0.01
         has_ohe = False
         avoid_back_original = False
+        threshold_changes = 1000
         verbose = False
 
         mock_get_ohe_params.return_value = [[2, 3, 4], [7, 8, 9]], [2, 3, 4, 7, 8, 9]
@@ -234,7 +236,7 @@ class TestScriptBase(unittest.TestCase):
 
         response_obj = find_tabular(factual, model_predict_proba, feat_types, cf_strategy, increase_threshold, it_max,
                                     limit_seconds, ft_change_factor, ft_it_max, size_tabu, ft_threshold_distance,
-                                    has_ohe, avoid_back_original, verbose)
+                                    has_ohe, avoid_back_original,threshold_changes, verbose)
 
         # Check _check_factual
         mock_check_factual.assert_called_once_with(factual)
@@ -250,7 +252,7 @@ class TestScriptBase(unittest.TestCase):
         mock_get_ohe_params.assert_called_with(factual, False)
 
         # Check call for cf_finder
-        self.assertEqual(len(mock_greedy_generator.call_args[1]), 15)
+        self.assertEqual(len(mock_greedy_generator.call_args[1]), 16)
         self.assertEqual(mock_greedy_generator.call_args[1]['cf_data_type'], 'tabular')
         self.assertListEqual(mock_greedy_generator.call_args[1]['factual'].tolist(), factual.tolist())
         self.assertEqual(mock_greedy_generator.call_args[1]['mp1c'], mock_mp1c)
@@ -265,10 +267,11 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_greedy_generator.call_args[1]['avoid_back_original'], avoid_back_original)
         self.assertEqual(mock_greedy_generator.call_args[1]['ft_time'], None)
         self.assertEqual(mock_greedy_generator.call_args[1]['ft_time_limit'], None)
+        self.assertEqual(mock_greedy_generator.call_args[1]['threshold_changes'], 1000)
         self.assertEqual(mock_greedy_generator.call_args[1]['verbose'], verbose)
 
         # Check call for _fine_tuning
-        self.assertEqual(len(mock_fine_tuning.call_args[1]), 18)
+        self.assertEqual(len(mock_fine_tuning.call_args[1]), 19)
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_data_type'], 'tabular')
         self.assertListEqual(mock_fine_tuning.call_args[1]['factual'].tolist(), factual.tolist())
         self.assertListEqual(mock_fine_tuning.call_args[1]['cf_out'].tolist(), cf_out.tolist())
@@ -286,6 +289,7 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_fine_tuning.call_args[1]['limit_seconds'], limit_seconds)
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_finder'], mock_greedy_generator)
         self.assertEqual(mock_fine_tuning.call_args[1]['avoid_back_original'], avoid_back_original)
+        self.assertEqual(mock_fine_tuning.call_args[1]['threshold_changes'], 1000)
         self.assertEqual(mock_fine_tuning.call_args[1]['verbose'], verbose)
 
         # Check call for _CFTabular
@@ -716,6 +720,7 @@ class TestScriptBase(unittest.TestCase):
         ft_it_max = self.cf_img_default_ft_it_max
         size_tabu = self.cf_img_default_size_tabu
         ft_threshold_distance = self.cf_img_default_ft_threshold_distance
+        threshold_changes = self.cf_img_default_threshold_changes
         avoid_back_original = self.cf_img_default_avoid_back_original
         verbose = self.cf_img_default_verbose
 
@@ -734,7 +739,7 @@ class TestScriptBase(unittest.TestCase):
         response_obj = find_image(img, mock_model_predict, segmentation, params_segmentation, replace_mode,
                                   img_cf_strategy, cf_strategy, increase_threshold, it_max, limit_seconds,
                                   ft_change_factor, ft_it_max, size_tabu, ft_threshold_distance, avoid_back_original,
-                                  verbose)
+                                  threshold_changes, verbose)
 
         # Check gen_quickshift was called
         mock_gen_quickshift.assert_called_once_with(img, params_segmentation)
@@ -756,7 +761,7 @@ class TestScriptBase(unittest.TestCase):
         self.assertFalse(mock_adjust_multiclass_second_best.called)
 
         # Check the call made by _greedy_generator
-        self.assertEqual(len(mock_greedy_generator.call_args[1]), 15)
+        self.assertEqual(len(mock_greedy_generator.call_args[1]), 16)
         self.assertEqual(mock_greedy_generator.call_args[1]['cf_data_type'], 'image')
         self.assertEqual(mock_greedy_generator.call_args[1]['factual'].tolist(), factual.tolist())
         self.assertEqual(mock_greedy_generator.call_args[1]['mp1c'], mock_adjust_multiclass_nonspecific())
@@ -771,10 +776,11 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_greedy_generator.call_args[1]['size_tabu'], 1)
         self.assertEqual(mock_greedy_generator.call_args[1]['ft_time'], None)
         self.assertEqual(mock_greedy_generator.call_args[1]['ft_time_limit'], None)
+        self.assertEqual(mock_greedy_generator.call_args[1]['threshold_changes'], 1000)
         self.assertEqual(mock_greedy_generator.call_args[1]['verbose'], verbose)
 
         # Check _fine_tuning call
-        self.assertEqual(len(mock_fine_tuning.call_args[1]), 18)
+        self.assertEqual(len(mock_fine_tuning.call_args[1]), 19)
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_data_type'], 'image')
         self.assertEqual(mock_fine_tuning.call_args[1]['factual'].tolist(), factual.tolist())
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_out'], mock_greedy_generator())
@@ -792,6 +798,7 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_fine_tuning.call_args[1]['limit_seconds'], 120)
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_finder'], mock_greedy_generator)
         self.assertEqual(mock_fine_tuning.call_args[1]['avoid_back_original'], True)
+        self.assertEqual(mock_fine_tuning.call_args[1]['threshold_changes'], 1000)
         self.assertEqual(mock_fine_tuning.call_args[1]['verbose'], False)
 
         # Check call for _CFImage
@@ -1554,6 +1561,7 @@ class TestScriptBase(unittest.TestCase):
         size_tabu = None
         ft_threshold_distance = 0.01
         avoid_back_original = False
+        threshold_changes = 1000
         verbose = False
 
         factual_df = pd.DataFrame([{'0_0': 1, '0_1': 0, '1_0': 1, '1_1': 0, '2_0': 1, '2_1': 0}])
@@ -1582,7 +1590,7 @@ class TestScriptBase(unittest.TestCase):
         response_obj = find_text(
             text_input, mock_textual_classifier, word_replace_strategy, cf_strategy, increase_threshold, it_max,
             limit_seconds, ft_change_factor, ft_it_max, size_tabu, ft_threshold_distance, avoid_back_original,
-            verbose)
+            threshold_changes, verbose)
 
         # Check if _text_to_token_vector was called
         mock_text_to_token_vector.assert_called_once_with(text_input)
@@ -1611,7 +1619,7 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_get_ohe_params.call_args[0][1], True)
 
         # Check if cf_finder was called with the right parameters
-        self.assertEqual(len(mock_greedy_generator.call_args[1]), 15)
+        self.assertEqual(len(mock_greedy_generator.call_args[1]), 16)
         self.assertEqual(mock_greedy_generator.call_args[1]['cf_data_type'], 'text')
         self.assertEqual(mock_greedy_generator.call_args[1]['factual'].tolist(), factual_df.iloc[0].tolist())
         self.assertEqual(mock_greedy_generator.call_args[1]['mp1c'], mock_mts)
@@ -1627,10 +1635,11 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_greedy_generator.call_args[1]['size_tabu'], 1)
         self.assertEqual(mock_greedy_generator.call_args[1]['ft_time'], None)
         self.assertEqual(mock_greedy_generator.call_args[1]['ft_time_limit'], None)
+        self.assertEqual(mock_greedy_generator.call_args[1]['threshold_changes'], 1000)
         self.assertEqual(mock_greedy_generator.call_args[1]['verbose'], verbose)
 
         # Check _fine_tuning called with the right parameters
-        self.assertEqual(len(mock_fine_tuning.call_args[1]), 18)
+        self.assertEqual(len(mock_fine_tuning.call_args[1]), 19)
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_data_type'], 'text')
         self.assertEqual(mock_fine_tuning.call_args[1]['factual'].tolist(), factual_df.iloc[0].tolist())
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_out'], mock_greedy_generator())
@@ -1649,6 +1658,7 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_fine_tuning.call_args[1]['limit_seconds'], 120)
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_finder'], mock_greedy_generator)
         self.assertEqual(mock_fine_tuning.call_args[1]['avoid_back_original'], False)
+        self.assertEqual(mock_fine_tuning.call_args[1]['threshold_changes'], 1000)
         self.assertEqual(mock_fine_tuning.call_args[1]['verbose'], False)
 
         # Check call for _CFText
@@ -1951,74 +1961,6 @@ class TestScriptBase(unittest.TestCase):
                 limit_seconds, ft_change_factor, ft_it_max, size_tabu, ft_threshold_distance, avoid_back_original,
                 verbose)
 
-    @patch('cfnow.cf_finder._CFText')
-    @patch('cfnow.cf_finder.warnings')
-    @patch('cfnow.cf_finder._fine_tuning')
-    @patch('cfnow.cf_finder._get_ohe_params')
-    @patch('cfnow.cf_finder.logging')
-    @patch('cfnow.cf_finder._standardize_predictor')
-    @patch('cfnow.cf_finder._adjust_textual_classifier')
-    @patch('cfnow.cf_finder._convert_change_vectors_func')
-    @patch('cfnow.cf_finder._text_to_change_vector')
-    @patch('cfnow.cf_finder._text_to_token_vector')
-    @patch('cfnow.cf_finder.datetime')
-    @patch('cfnow.cf_finder._greedy_generator')
-    @patch('cfnow.cf_finder._random_generator')
-    def test__find_text_example(
-            self, mock_random_generator, mock_greedy_generator, mock_datetime, mock_text_to_token_vector,
-            mock_text_to_change_vector, mock_convert_change_vectors_func, mock_adjust_textual_classifier,
-            mock_standardize_predictor, mock_logging, mock_get_ohe_params, mock_fine_tuning, mock_warnings,
-            mock_CFText):
-        text_input = 'I like music'
-
-        def _textual_classifier_predict(array_txt_input):
-            if array_txt_input[0] == 'I like music':
-                return [0.0]
-            else:
-                return [1.0]
-
-        mock_textual_classifier = MagicMock()
-        mock_textual_classifier.side_effect = lambda x: _textual_classifier_predict(x)
-
-        word_replace_strategy = 'remove'
-        cf_strategy = 'greedy'
-        increase_threshold = -1
-        it_max = 1000
-        limit_seconds = 120
-        ft_change_factor = 0.1
-        ft_it_max = 1000
-        size_tabu = None
-        ft_threshold_distance = 0.01
-        avoid_back_original = False
-        verbose = False
-
-        factual_df = pd.DataFrame([{'0_0': 1, '0_1': 0, '1_0': 1, '1_1': 0, '2_0': 1, '2_1': 0}])
-        mock_text_to_token_vector.return_value = (
-            ['I', 'like', 'music'],
-            factual_df,
-            [['I', ''], ['like', ''], ['music', '']])
-
-        def _mock_mts(factual):
-            if type(factual) == pd.DataFrame:
-                if np.array_equal(factual.to_numpy(), factual_df.to_numpy()):
-                    return [0.0]
-            if type(factual) == np.ndarray:
-                if np.array_equal(factual, factual_df.to_numpy()):
-                    return [0.0]
-
-            return [1.0]
-
-        mock_mts = MagicMock()
-        mock_mts.side_effect = _mock_mts
-
-        mock_standardize_predictor.return_value = mock_mts
-
-        mock_get_ohe_params.return_value = ([[0, 1], [2, 3], [4, 5]], [0, 1, 2, 3, 4, 5])
-
-        response_obj = find_text(
-            text_input, mock_textual_classifier, word_replace_strategy, cf_strategy, increase_threshold, it_max,
-            limit_seconds, ft_change_factor, ft_it_max, size_tabu, ft_threshold_distance, avoid_back_original,
-            verbose)
 
     @patch('cfnow.cf_finder._CFText')
     @patch('cfnow.cf_finder.warnings')

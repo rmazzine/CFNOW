@@ -129,6 +129,7 @@ def find_tabular(
         ft_threshold_distance: float = 0.01,
         has_ohe: bool = False,
         avoid_back_original: bool = False,
+        threshold_changes: int = 1000,
         verbose: bool = False) -> _CFTabular:
     """
     For a factual tabular point and prediction model, finds a counterfactual explanation
@@ -167,6 +168,9 @@ def find_tabular(
     :param avoid_back_original: (optional) For the greedy strategy, not allows changing back to the original values.
     Default=False
     :type avoid_back_original: bool
+    :param threshold_changes: (optional) For the random strategy, threshold for the maximum number of changes to be
+    created in the CF finding process. Default=1000
+    :type threshold_changes: int
     :param verbose: (optional) If True, it will output detailed information of CF finding and optimization steps.
     Default=False
     :type verbose: bool
@@ -228,6 +232,7 @@ def find_tabular(
                        avoid_back_original=avoid_back_original,
                        ft_time=None,
                        ft_time_limit=None,
+                       threshold_changes=threshold_changes,
                        verbose=verbose)
 
     # Calculate time to generate the not optimized CF
@@ -261,6 +266,7 @@ def find_tabular(
                              limit_seconds=limit_seconds,
                              cf_finder=cf_finder,
                              avoid_back_original=avoid_back_original,
+                             threshold_changes=threshold_changes,
                              verbose=verbose)
 
     # Total time to generate the optimized CF
@@ -294,6 +300,7 @@ def find_image(
         size_tabu: int = None,
         ft_threshold_distance: float = 0.01,
         avoid_back_original: bool = None,
+        threshold_changes: int = 1000,
         verbose: bool = False) -> _CFImage:
     """
     For an image input and prediction model, finds a counterfactual explanation
@@ -336,6 +343,9 @@ def find_image(
     :param avoid_back_original: For the greedy strategy, not allows changing back to the original values.
     Default=True (greedy), False (random)
     :type avoid_back_original: bool
+    :param threshold_changes: (optional) For the random strategy, threshold for the maximum number of changes to be
+    created in the CF finding process. Default=1000
+    :type threshold_changes: int
     :param verbose: (optional) If True, it will output detailed information of CF finding and optimization steps.
     Default=False
     :type verbose: bool
@@ -443,6 +453,7 @@ def find_image(
                        size_tabu=size_tabu,
                        ft_time=None,
                        ft_time_limit=None,
+                       threshold_changes=threshold_changes,
                        verbose=verbose)
 
     # Calculate time to generate the not optimized CF
@@ -481,6 +492,7 @@ def find_image(
                              limit_seconds=limit_seconds,
                              cf_finder=cf_finder,
                              avoid_back_original=avoid_back_original,
+                             threshold_changes=threshold_changes,
                              verbose=verbose)
 
     # Total time to generate the optimized CF
@@ -516,6 +528,7 @@ def find_text(
         size_tabu: int = None,
         ft_threshold_distance: float = 0.01,
         avoid_back_original: bool = False,
+        threshold_changes: int = 1000,
         verbose: bool = False) -> _CFText:
     """
     For a text input and prediction model, finds a counterfactual explanation
@@ -548,6 +561,9 @@ def find_text(
     :type ft_threshold_distance: float
     :param avoid_back_original: For the greedy strategy, not allows changing back to the original values
     :type avoid_back_original: bool
+    :param threshold_changes: (optional) For the random strategy, threshold for the maximum number of changes to be
+    created in the CF finding process. Default=1000
+    :type threshold_changes: int
     :param verbose: (optional) If True, it will output detailed information of CF finding and optimization steps.
     Default=False
     :type verbose: bool
@@ -643,6 +659,7 @@ def find_text(
                        avoid_back_original=avoid_back_original,
                        ft_time=None,
                        ft_time_limit=None,
+                       threshold_changes=threshold_changes,
                        verbose=verbose)
 
     # Calculate time to generate the not optimized CF
@@ -681,6 +698,7 @@ def find_text(
                              limit_seconds=limit_seconds,
                              cf_finder=cf_finder,
                              avoid_back_original=avoid_back_original,
+                             threshold_changes=threshold_changes,
                              verbose=verbose)
 
     # Total time to generate the optimized CF

@@ -1478,13 +1478,14 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = None
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
 
         cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
                                    ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, verbose)
+                                   ft_time, ft_time_limit, threshold_changes, verbose)
 
         self.assertTrue((factual_np != cf_try).sum() > 0)
 
@@ -1534,13 +1535,14 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = None
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
 
         cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
                                    ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, verbose)
+                                   ft_time, ft_time_limit, threshold_changes,  verbose)
 
         self.assertListEqual(cf_try.tolist(), [-50, 10, 1, 0, 0, 1, 0, 1, 0, 0])
 
@@ -1572,6 +1574,7 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = None
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, True, False]
@@ -1579,7 +1582,7 @@ class TestScriptBase(unittest.TestCase):
 
         cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
                                    ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, verbose)
+                                   ft_time, ft_time_limit, threshold_changes, verbose)
 
         # Verify if momentum was incremented (equal to 1) in the last iteration
         self.assertEqual(mock_create_factual_changes.call_args_list[-1][0][3], 1)
@@ -1628,6 +1631,7 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = None
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         # Verify threshold for tabular data
@@ -1636,9 +1640,10 @@ class TestScriptBase(unittest.TestCase):
         mock_generate_random_changes.side_effect = lambda *args: _generate_random_changes(*args)
         cf_try_tabular_threshold = _random_generator(
             cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose)
-        # Assert the threshold is 2000
-        self.assertEqual(mock_generate_random_changes.call_args_list[0][0][6], 2000)
+            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
+            verbose)
+        # Assert the threshold is 1000
+        self.assertEqual(mock_generate_random_changes.call_args_list[0][0][6], 1000)
 
         # Verify threshold for image data
         cf_data_type = 'image'
@@ -1646,9 +1651,10 @@ class TestScriptBase(unittest.TestCase):
         mock_generate_random_changes.side_effect = lambda *args: _generate_random_changes(*args)
         cf_try_tabular_threshold = _random_generator(
             cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose)
-        # Assert the threshold is 2000
-        self.assertEqual(mock_generate_random_changes.call_args_list[1][0][6], 200)
+            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
+            verbose)
+        # Assert the threshold is 1000
+        self.assertEqual(mock_generate_random_changes.call_args_list[1][0][6], 1000)
 
         # Verify threshold for text data
         cf_data_type = 'text'
@@ -1656,9 +1662,10 @@ class TestScriptBase(unittest.TestCase):
         mock_generate_random_changes.side_effect = lambda *args: _generate_random_changes(*args)
         cf_try_tabular_threshold = _random_generator(
             cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose)
-        # Assert the threshold is 2000
-        self.assertEqual(mock_generate_random_changes.call_args_list[2][0][6], 500)
+            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
+            verbose)
+        # Assert the threshold is 1000
+        self.assertEqual(mock_generate_random_changes.call_args_list[2][0][6], 1000)
 
     @patch('cfnow._cf_searchers._generate_random_changes')
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
@@ -1702,6 +1709,7 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = None
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
@@ -1723,7 +1731,7 @@ class TestScriptBase(unittest.TestCase):
 
         cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
                                    ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, verbose)
+                                   ft_time, ft_time_limit, threshold_changes, verbose)
 
         # In this case, as there are no changes, the output CF must be the same as the factual
         self.assertFalse((factual_np != cf_try).sum() > 0)
@@ -1769,13 +1777,14 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = None
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
 
         cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
                                    ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, verbose)
+                                   ft_time, ft_time_limit, threshold_changes, verbose)
 
         # In this case, as there are no changes (since all features are in the Tabu list),
         # the output CF must be the same as the factual
@@ -1822,13 +1831,14 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = None
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = True
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
 
         cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
                                    ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, verbose)
+                                   ft_time, ft_time_limit, threshold_changes, verbose)
 
         mock_logging.log.assert_called()
 
@@ -2095,13 +2105,15 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = False
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         mock_greedy_generator_stop_conditions.side_effect = [True, False]
 
         cf_try = _greedy_generator(
             cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose)
+            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
+            verbose)
 
         self.assertTrue((factual_np != cf_try).sum() > 0)
 
@@ -2153,6 +2165,7 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = False
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         mock_create_factual_changes.side_effect = lambda *args: _create_factual_changes(*args)
@@ -2162,7 +2175,8 @@ class TestScriptBase(unittest.TestCase):
 
         cf_try = _greedy_generator(
             cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose)
+            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
+            verbose)
 
         # Verify if momentum was increased in the last step
         self.assertEqual(mock_create_factual_changes.call_args_list[-1][0][3], 1)
@@ -2214,6 +2228,7 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = False
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         mock_create_factual_changes.side_effect = lambda *args: _create_factual_changes(*args)
@@ -2223,7 +2238,8 @@ class TestScriptBase(unittest.TestCase):
 
         cf_try = _greedy_generator(
             cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose)
+            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
+            verbose)
 
         # Verify if momentum was increased in the last step
         self.assertEqual(mock_create_factual_changes.call_args_list[-1][0][3], 1)
@@ -2281,6 +2297,7 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = False
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         mock_create_factual_changes.side_effect = lambda *args: _create_factual_changes(*args)
@@ -2290,7 +2307,8 @@ class TestScriptBase(unittest.TestCase):
 
         cf_try = _greedy_generator(
             cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose)
+            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
+            verbose)
 
         # Verify if momentum was increased in the last step
         self.assertEqual(mock_create_factual_changes.call_args_list[-1][0][3], 0)
@@ -2341,13 +2359,15 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = False
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         mock_greedy_generator_stop_conditions.side_effect = [True, False]
 
         cf_try = _greedy_generator(
             cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose)
+            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
+            verbose)
 
         # Verify if result CF is the one with the highest probability as defined in the function above
         self.assertListEqual(cf_try.tolist(), [-50, 10, 1, 0, 0, 1, 0, 1, 0, 0])
@@ -2393,6 +2413,7 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = False
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = False
 
         mock_greedy_generator_stop_conditions.side_effect = [True, False]
@@ -2400,7 +2421,8 @@ class TestScriptBase(unittest.TestCase):
 
         cf_try = _greedy_generator(
             cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose)
+            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
+            verbose)
 
         self.assertTrue((factual_np != cf_try).sum() == 0)
 
@@ -2445,12 +2467,14 @@ class TestScriptBase(unittest.TestCase):
         avoid_back_original = False
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        threshold_changes = 1000
         verbose = True
 
         mock_greedy_generator_stop_conditions.side_effect = [True, False]
 
         cf_try = _greedy_generator(
             cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, verbose)
+            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
+            verbose)
 
         mock_logging.log.assert_called()

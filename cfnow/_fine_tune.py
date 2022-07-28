@@ -123,7 +123,7 @@ def _stop_optimization_conditions(factual_np, c_cf, limit_seconds, time_start, f
 
 def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types,
                  ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds,
-                 cf_finder, avoid_back_original, verbose):
+                 cf_finder, avoid_back_original, threshold_changes, verbose):
     """
 
     :param cf_data_type: Type of data
@@ -234,6 +234,7 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
                              avoid_back_original=avoid_back_original,
                              ft_time=time_start,
                              ft_time_limit=limit_seconds,
+                             threshold_changes=threshold_changes,
                              verbose=verbose)
 
     return best_solution
