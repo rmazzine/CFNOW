@@ -20,6 +20,16 @@ class TestCFBaseResponse(unittest.TestCase):
         time_cf_not_optimized = 0
         _CFBaseResponse(factual, factual_vector, cf_vector, cf_not_optimized_vector, time_cf, time_cf_not_optimized)
 
+    def test_create_object_no_cf(self):
+        factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
+                             'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
+        factual_vector = factual.to_numpy()
+        cf_vector = None
+        cf_not_optimized_vector = None
+        time_cf = None
+        time_cf_not_optimized = 0
+        _CFBaseResponse(factual, factual_vector, cf_vector, cf_not_optimized_vector, time_cf, time_cf_not_optimized)
+
 
 class TestCFTabular(unittest.TestCase):
     def test_create_object(self):
@@ -41,57 +51,77 @@ class TestCFTabular(unittest.TestCase):
         self.assertListEqual(cf_tabular.cf.tolist(), cf_vector.tolist())
         self.assertListEqual(cf_tabular.cf_not_optimized.tolist(), cf_not_optimized_vector.tolist())
 
+    def test_create_object_no_cf(self):
+        factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
+                             'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
+        factual_vector = factual.to_numpy()
+        cf_vector = None
+        cf_not_optimized_vector = None
+        time_cf = None
+        time_cf_not_optimized = 0
+
+        cf_tabular = _CFTabular(factual=factual,
+                                factual_vector=factual_vector,
+                                cf_vector=cf_vector,
+                                cf_not_optimized_vector=cf_not_optimized_vector,
+                                time_cf=time_cf,
+                                time_cf_not_optimized=time_cf_not_optimized)
+
+        self.assertEqual(cf_tabular.cf, None)
+        self.assertEqual(cf_tabular.cf_not_optimized, None)
+
 
 class TestCFImage(unittest.TestCase):
+
+    factual = []
+    segments = []
+    replace_img = []
+    for ir in range(240):
+        row_img = []
+        row_segments = []
+        row_replace_image = []
+        for ic in range(240):
+            row_replace_image.append([0, 0, 0])
+            if ir > ic:
+                row_img.append([127, 127, 127])
+                row_segments.append(1)
+            else:
+                row_img.append([255, 255, 255])
+                row_segments.append(0)
+        replace_img.append(row_replace_image)
+        factual.append(row_img)
+        segments.append(row_segments)
+    replace_img = np.array(replace_img).astype('uint8')
+    factual = np.array(factual).astype('uint8')
+    segments = np.array(segments)
+
     def test_create_object(self):
         mock_seg_to_img = MagicMock()
 
-        factual = []
-        segments = []
-        replace_img = []
-        for ir in range(240):
-            row_img = []
-            row_segments = []
-            row_replace_image = []
-            for ic in range(240):
-                row_replace_image.append([0, 0, 0])
-                if ir > ic:
-                    row_img.append([127, 127, 127])
-                    row_segments.append(1)
-                else:
-                    row_img.append([255, 255, 255])
-                    row_segments.append(0)
-            replace_img.append(row_replace_image)
-            factual.append(row_img)
-            segments.append(row_segments)
-        replace_img = np.array(replace_img).astype('uint8')
-        factual = np.array(factual).astype('uint8')
-        segments = np.array(segments)
-
-        factual_vector = pd.Series({n: 1 for n in range(len(np.unique(segments)))})
-        cf_vector = np.array([0]*len(np.unique(segments)))
-        cf_not_optimized_vector = np.array([0]*len(np.unique(segments)))
+        factual_vector = pd.Series({n: 1 for n in range(len(np.unique(self.segments)))})
+        cf_vector = np.array([0]*len(np.unique(self.segments)))
+        cf_not_optimized_vector = np.array([0]*len(np.unique(self.segments)))
         time_cf = 0
         time_cf_not_optimized = 0
 
         cf_image = _CFImage(
             mock_seg_to_img,
-            segments,
-            replace_img,
+            self.segments,
+            self.replace_img,
 
-            factual=factual,
+            factual=self.factual,
             factual_vector=factual_vector,
             cf_vector=cf_vector,
             cf_not_optimized_vector=cf_not_optimized_vector,
             time_cf=time_cf,
             time_cf_not_optimized=time_cf_not_optimized)
 
-        self.assertListEqual(cf_image.segments.tolist(), segments.tolist())
+        self.assertListEqual(cf_image.segments.tolist(), self.segments.tolist())
 
         self.assertListEqual(cf_image.cf_segments.tolist(), [0, 1])
         self.assertListEqual(cf_image.cf_not_optimized_segments.tolist(), [0, 1])
 
-        green_replace = np.zeros(factual.shape)
+        green_replace = np.zeros(self.factual.shape)
         green_replace[:, :, 1] = 1
 
         self.assertListEqual(mock_seg_to_img.call_args_list[0][0][0][0].tolist(), cf_vector.tolist())
@@ -99,20 +129,55 @@ class TestCFImage(unittest.TestCase):
         self.assertListEqual(mock_seg_to_img.call_args_list[2][0][0][0].tolist(), cf_vector.tolist())
         self.assertListEqual(mock_seg_to_img.call_args_list[3][0][0][0].tolist(), cf_not_optimized_vector.tolist())
 
-        self.assertListEqual(mock_seg_to_img.call_args_list[0][0][1].tolist(), factual.tolist())
-        self.assertListEqual(mock_seg_to_img.call_args_list[1][0][1].tolist(), factual.tolist())
-        self.assertListEqual(mock_seg_to_img.call_args_list[2][0][1].tolist(), factual.tolist())
-        self.assertListEqual(mock_seg_to_img.call_args_list[3][0][1].tolist(), factual.tolist())
+        self.assertListEqual(mock_seg_to_img.call_args_list[0][0][1].tolist(), self.factual.tolist())
+        self.assertListEqual(mock_seg_to_img.call_args_list[1][0][1].tolist(), self.factual.tolist())
+        self.assertListEqual(mock_seg_to_img.call_args_list[2][0][1].tolist(), self.factual.tolist())
+        self.assertListEqual(mock_seg_to_img.call_args_list[3][0][1].tolist(), self.factual.tolist())
 
-        self.assertListEqual(mock_seg_to_img.call_args_list[0][0][2].tolist(), segments.tolist())
-        self.assertListEqual(mock_seg_to_img.call_args_list[1][0][2].tolist(), segments.tolist())
-        self.assertListEqual(mock_seg_to_img.call_args_list[2][0][2].tolist(), segments.tolist())
-        self.assertListEqual(mock_seg_to_img.call_args_list[3][0][2].tolist(), segments.tolist())
+        self.assertListEqual(mock_seg_to_img.call_args_list[0][0][2].tolist(), self.segments.tolist())
+        self.assertListEqual(mock_seg_to_img.call_args_list[1][0][2].tolist(), self.segments.tolist())
+        self.assertListEqual(mock_seg_to_img.call_args_list[2][0][2].tolist(), self.segments.tolist())
+        self.assertListEqual(mock_seg_to_img.call_args_list[3][0][2].tolist(), self.segments.tolist())
 
-        self.assertTrue(np.array_equal(mock_seg_to_img.call_args_list[0][0][3], replace_img))
-        self.assertTrue(np.array_equal(mock_seg_to_img.call_args_list[1][0][3], replace_img))
-        self.assertTrue(np.array_equal(mock_seg_to_img.call_args_list[2][0][3], green_replace))
+        self.assertTrue(np.array_equal(mock_seg_to_img.call_args_list[0][0][3], self.replace_img))
+        self.assertTrue(np.array_equal(mock_seg_to_img.call_args_list[1][0][3], green_replace))
+        self.assertTrue(np.array_equal(mock_seg_to_img.call_args_list[2][0][3], self.replace_img))
         self.assertTrue(np.array_equal(mock_seg_to_img.call_args_list[3][0][3], green_replace))
+
+    def test_create_object_no_cf(self):
+        mock_seg_to_img = MagicMock()
+
+        factual_vector = pd.Series({n: 1 for n in range(len(np.unique(self.segments)))})
+        cf_vector = None
+        cf_not_optimized_vector = None
+        time_cf = None
+        time_cf_not_optimized = 0
+
+        cf_image = _CFImage(
+            mock_seg_to_img,
+            self.segments,
+            self.replace_img,
+
+            factual=self.factual,
+            factual_vector=factual_vector,
+            cf_vector=cf_vector,
+            cf_not_optimized_vector=cf_not_optimized_vector,
+            time_cf=time_cf,
+            time_cf_not_optimized=time_cf_not_optimized)
+
+        self.assertListEqual(cf_image.segments.tolist(), self.segments.tolist())
+
+        self.assertEqual(cf_image.cf, None)
+        self.assertEqual(cf_image.cf_image_highlight, None)
+        self.assertEqual(cf_image.cf_not_optimized, None)
+        self.assertEqual(cf_image.cf_not_optimized_image_highlight, None)
+        self.assertListEqual(cf_image.cf_segments.tolist(), [])
+        self.assertListEqual(cf_image.cf_not_optimized_segments.tolist(), [])
+
+        green_replace = np.zeros(self.factual.shape)
+        green_replace[:, :, 1] = 1
+
+        mock_seg_to_img.assert_not_called()
 
 
 class TestCFText(unittest.TestCase):
@@ -147,6 +212,37 @@ class TestCFText(unittest.TestCase):
 
         self.assertListEqual(cf_text.cf_replaced_words, ['I', 'like', 'music'])
         self.assertListEqual(cf_text.cf_not_optimized_replaced_words, ['I', 'like', 'music'])
+
+    def test_create_object_no_cf(self):
+        mock_converter = MagicMock()
+        text_replace = [['I', ''], ['like', ''], ['music', '']]
+
+        factual = 'I like music'
+
+        factual_vector = np.array([1, 0, 1, 0, 1, 0])
+        cf_vector = None
+        cf_not_optimized_vector = None
+        time_cf = None
+        time_cf_not_optimized = 0
+
+        cf_text = _CFText(mock_converter,
+                          text_replace,
+
+                          factual=factual,
+                          factual_vector=factual_vector,
+                          cf_vector=cf_vector,
+                          cf_not_optimized_vector=cf_not_optimized_vector,
+                          time_cf=time_cf,
+                          time_cf_not_optimized=time_cf_not_optimized)
+
+        self.assertListEqual(mock_converter.call_args_list[0][0][0][0].tolist(), factual_vector.tolist())
+
+        self.assertEqual(cf_text.cf, None)
+        self.assertEqual(cf_text.cf_html_highlight, None)
+        self.assertEqual(cf_text.cf_not_optimized, None)
+        self.assertEqual(cf_text.cf_html_not_optimized, None)
+        self.assertListEqual(cf_text.cf_replaced_words, [])
+        self.assertListEqual(cf_text.cf_not_optimized_replaced_words, [])
 
 
 class TestScriptBase(unittest.TestCase):

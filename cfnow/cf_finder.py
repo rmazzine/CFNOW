@@ -69,18 +69,29 @@ class _CFImage(_CFBaseResponse):
         super(_CFImage, self).__init__(**kwargs)
 
         self.segments = segments
-        self.cf = _seg_to_img([self.cf_vector], self.factual, segments, replace_img)[0]
-        self.cf_not_optimized = _seg_to_img([self.cf_not_optimized_vector], self.factual, segments, replace_img)[0]
-
-        self.cf_segments = np.where(self.cf_vector == 0)[0]
-        self.cf_not_optimized_segments = np.where(self.cf_not_optimized_vector == 0)[0]
 
         # Green replacement to highlight changes
         green_replace = np.zeros(self.factual.shape)
         green_replace[:, :, 1] = 1
-        self.cf_image_highlight = _seg_to_img([self.cf_vector], self.factual, segments, green_replace)[0]
-        self.cf_not_optimized_image_highlight = _seg_to_img([self.cf_not_optimized_vector], self.factual,
-                                                            segments, green_replace)[0]
+
+        if self.cf_vector is not None:
+            self.cf = _seg_to_img([self.cf_vector], self.factual, segments, replace_img)[0]
+            self.cf_segments = np.where(self.cf_vector == 0)[0]
+            self.cf_image_highlight = _seg_to_img([self.cf_vector], self.factual, segments, green_replace)[0]
+        else:
+            self.cf = None
+            self.cf_segments = np.array([])
+            self.cf_image_highlight = None
+
+        if self.cf_not_optimized_vector is not None:
+            self.cf_not_optimized = _seg_to_img([self.cf_not_optimized_vector], self.factual, segments, replace_img)[0]
+            self.cf_not_optimized_segments = np.where(self.cf_not_optimized_vector == 0)[0]
+            self.cf_not_optimized_image_highlight = _seg_to_img([self.cf_not_optimized_vector], self.factual,
+                                                                segments, green_replace)[0]
+        else:
+            self.cf_not_optimized = None
+            self.cf_not_optimized_segments = np.array([])
+            self.cf_not_optimized_image_highlight = None
 
 
 class _CFText(_CFBaseResponse):
@@ -96,23 +107,31 @@ class _CFText(_CFBaseResponse):
 
         super(_CFText, self).__init__(**kwargs)
 
-        self.cf = converter([self.cf_vector])[0]
-        self.cf_not_optimized = converter([self.cf_not_optimized_vector])[0]
-
-        self.cf_html_highlight = converter([self.cf_vector], True)[0]
-        self.cf_html_not_optimized = converter([self.cf_not_optimized_vector], True)[0]
-
-        self.adjusted_factual = converter([self.factual_vector])[0]
-
         # Remove entries that are not considered (which does not have any word)
         text_replace_valid = np.array([t for t in text_replace if len(t) > 0])
 
-        replaced_feats_idx = [int(wi/2) for wi in np.where(self.factual_vector != self.cf_vector)[0][::2]]
-        self.cf_replaced_words = [w[0] for w in text_replace_valid[replaced_feats_idx]]
+        if self.cf_vector is not None:
+            self.cf = converter([self.cf_vector])[0]
+            self.cf_html_highlight = converter([self.cf_vector], True)[0]
+            replaced_feats_idx = [int(wi / 2) for wi in np.where(self.factual_vector != self.cf_vector)[0][::2]]
+            self.cf_replaced_words = [w[0] for w in text_replace_valid[replaced_feats_idx]]
+        else:
+            self.cf = None
+            self.cf_html_highlight = None
+            self.cf_replaced_words = []
 
-        replaced_not_optimized_feats_idx = [int(wi/2) for wi in
-                                            np.where(self.factual_vector != self.cf_not_optimized_vector)[0][::2]]
-        self.cf_not_optimized_replaced_words = [w[0] for w in text_replace_valid[replaced_not_optimized_feats_idx]]
+        if self.cf_not_optimized_vector is not None:
+            self.cf_not_optimized = converter([self.cf_not_optimized_vector])[0]
+            self.cf_html_not_optimized = converter([self.cf_not_optimized_vector], True)[0]
+            replaced_not_optimized_feats_idx = [int(wi / 2) for wi in
+                                                np.where(self.factual_vector != self.cf_not_optimized_vector)[0][::2]]
+            self.cf_not_optimized_replaced_words = [w[0] for w in text_replace_valid[replaced_not_optimized_feats_idx]]
+        else:
+            self.cf_not_optimized = None
+            self.cf_html_not_optimized = None
+            self.cf_not_optimized_replaced_words = []
+
+        self.adjusted_factual = converter([self.factual_vector])[0]
 
 
 def _define_tabu_size(size_tabu, factual_vector):
