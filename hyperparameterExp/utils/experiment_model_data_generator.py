@@ -10,6 +10,8 @@ import PIL.Image as Image
 import tensorflow as tf
 import tensorflow_hub as hub
 
+from hyperparameterExp.utils.tabular_dataset_feat_types import VAR_TYPES
+
 # Although it's not used, it's necessary for model load
 import tensorflow_text as text
 
@@ -63,10 +65,18 @@ def tabular_data_model_paths():
 
     array_model_data_paths = []
     for dataset, n in data_n_rows.items():
+        dataset_name = dataset.split("_")[1]
+        dataset_var_types = VAR_TYPES[dataset_name]
+        columns_dataframe = pd.read_csv(f'{DATA_DIR}/TABULAR_DATA/{dataset}.csv', nrows=0)
+
+        feat_types = {col: 'num' if col in dataset_var_types['numerical'] else 'cat'
+                      for col in columns_dataframe.columns}
+
         for r_idx in range(n):
             array_model_data_paths.append([
                 f'{DATA_DIR}/TABULAR_DATA/{dataset}.csv',
                 f'{MODEL_DIR}/TABULAR_MODELS/{dataset.split("_")[1]}.h5',
+                feat_types,
                 r_idx])
 
     return array_model_data_paths
@@ -116,10 +126,13 @@ def image_data_paths():
             os.listdir(f'{DATA_DIR}/IMAGE_DATA/{dataset}')]
         file_paths.sort()
 
+        feat_types = None
+
         for r_idx in range(n):
             array_data_paths.append([
                 file_paths[r_idx],
                 'mobile_net_v2_small',
+                feat_types,
                 r_idx])
 
     return array_data_paths
@@ -144,10 +157,13 @@ def text_data_model_paths():
             os.listdir(f'{DATA_DIR}/TEXT_DATA/exp_files_{dataset}')]
         file_paths.sort()
 
+        feat_types = None
+
         for r_idx in range(n):
             array_model_data_paths.append([
                 file_paths[r_idx],
                 f'{MODEL_DIR}/TEXT_MODELS/{dataset.split("_")[0]}_bert',
+                feat_types,
                 r_idx])
 
     return array_model_data_paths
@@ -162,9 +178,9 @@ def load_tf_model(model_path: str, memory_limit: int) -> tf.keras.Model:
     :return: the model
     """
 
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    tf.config.experimental.set_virtual_device_configuration(gpus[0], [
-        tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)])
+    # gpus = tf.config.experimental.list_physical_devices('GPU')
+    # tf.config.experimental.set_virtual_device_configuration(gpus[0], [
+    #     tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)])
 
     model = tf.keras.models.load_model(model_path)
 
@@ -191,6 +207,10 @@ def load_mobilenetv2_model(memory_limit: int) -> tf.keras.Model:
     ])
 
     return model
+
+#
+# def textual_classifier(input_texts):
+#     return tf.sigmoid(reloaded_model(tf.constant(input_texts))).numpy()
 
 
 class DataModelGenerator:
@@ -248,12 +268,12 @@ class DataModelGenerator:
         :return: data point and model
         """
         if self.current_idx == len(self.idx_list):
-            raise StopIteration
+            return None
         else:
-            data_path, model_path, idx_row = self.experiment_idx[self.idx_list[self.current_idx]]
+            data_path, model_path, feat_types, idx_row = self.experiment_idx[self.idx_list[self.current_idx]]
             self.current_idx += 1
             if self.data_type == 'tabular':
-                row = pd.read_csv(data_path, nrows=1, skiprows=idx_row)
+                row = pd.read_csv(data_path, nrows=1, skiprows=idx_row).iloc[0]
             elif self.data_type == 'image':
                 # Make adjustments for image work in the classifier
                 img = Image.open(f'{data_path}')
@@ -261,12 +281,10 @@ class DataModelGenerator:
                 img = np.array(img) / 255.0
                 row = img
             elif self.data_type == 'text':
-                row = open(data_path, 'r').readlines()
+                row = open(data_path, 'r').readlines()[0]
             else:
                 raise AttributeError('Data type not supported')
 
             self.load_model(model_path)
 
-            return row, self.model
-
-a = 1
+            return row, self.model, data_path, model_path, feat_types, idx_row
