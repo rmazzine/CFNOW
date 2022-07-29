@@ -46,7 +46,7 @@ def _standardize_predictor(factual, model_predict_proba):
                 # where the factual (the largest initial output) is compared with the highest scoring class
                 # TODO: This can be improved with other strategies like second best or even specific class
                 _adjusted_nonspecific_mp1 = _adjust_multiclass_nonspecific(
-                    factual, lambda z: np.array([model_predict_proba(z)])
+                    np.array([factual.to_numpy()]), lambda z: np.array([model_predict_proba(z)])
                     if np.array(z).shape[0] == 1 else np.array(model_predict_proba(z)))
 
                 def _mp1(x): return _adjusted_nonspecific_mp1(x)
@@ -60,7 +60,7 @@ def _standardize_predictor(factual, model_predict_proba):
             # If there are more than one class, the multiclass nonspecific strategy will be performed
             # where the factual (the largest initial output) is compared with the highest scoring class
             # TODO: This can be improved with other strategies like second best or even specific class
-            _adjusted_nonspecific_mp1 = _adjust_multiclass_nonspecific(factual,
+            _adjusted_nonspecific_mp1 = _adjust_multiclass_nonspecific(np.array([factual.to_numpy()]),
                                                                        lambda z: np.array(model_predict_proba(z)))
 
             def _mp1(x): return _adjusted_nonspecific_mp1(x)
@@ -101,7 +101,7 @@ def _convert_to_numpy(data):
         return data
 
 
-def _adjust_multiclass_nonspecific(factual, mic):
+def _adjust_multiclass_nonspecific(factual: np.ndarray, mic):
     # Compare the factual class value to the other highest
     pred_factual = mic([factual])
     factual_idx = np.argmax(pred_factual)

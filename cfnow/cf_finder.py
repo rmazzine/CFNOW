@@ -175,7 +175,8 @@ def find_tabular(
     For a factual tabular point and prediction model, finds a counterfactual explanation
     :param factual: The factual point as Pandas DataFrame
     :type factual: pandas.DataFrame
-    :param model_predict_proba: Model's function which generates a class probability output
+    :param model_predict_proba: Model's function which generates a class probability output, it must be able to accept
+    a Pandas DataFrame and Numpy array as input
     :type model_predict_proba: object
     :param feat_types: (optional) A dictionary with {col_name: col_type}, where "col_name" is the name of the column
     and "col_type" can be "num" to indicate numerical continuous features and "cat" to indicate

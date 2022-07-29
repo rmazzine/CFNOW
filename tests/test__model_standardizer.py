@@ -114,7 +114,8 @@ class TestScriptBase(unittest.TestCase):
         self.assertCountEqual(multiple_prediction.shape, (3,))
         self.assertIsInstance(multiple_prediction, np.ndarray)
 
-    def test__standardize_predictor_single_10_multiple_31_multiclass(self):
+    @patch('cfnow._model_standardizer._adjust_multiclass_nonspecific')
+    def test__standardize_predictor_single_10_multiple_31_multiclass(self, mock_adjust_multiclass_nonspecific):
         # The predictor returns:
         # * Single prediction = [Num1, Num2, Num3]
         # * Multiple prediction = [[Num1, Num2, Num3], [Num1, Num2, Num3], [Num1, Num2, Num3]]
@@ -122,7 +123,11 @@ class TestScriptBase(unittest.TestCase):
         # highest class (3rd element)
         # The result must be a numpy array
         # Results must be, respectively, <0.5, ==0.5 and >0.5
-        def _model_predict_proba(x): return [0, 1, 2] if len(x) == 1 else [[0, 1, 2], [2, 1, 2], [3, 1, 2]]
+
+        mock_adjust_multiclass_nonspecific.side_effect = _adjust_multiclass_nonspecific
+
+        _model_predict_proba = MagicMock()
+        _model_predict_proba.side_effect = lambda x:  [0, 1, 2] if len(x) == 1 else [[0, 1, 2], [2, 1, 2], [3, 1, 2]]
         mp1 = _standardize_predictor(self.factual, _model_predict_proba)
 
         # Single prediction test
@@ -140,12 +145,19 @@ class TestScriptBase(unittest.TestCase):
         self.assertTrue(multiple_prediction[1] == 0.5)
         self.assertTrue(multiple_prediction[2] > 0.5)
 
-    def test__standardize_predictor_single_10_multiple_31_two_classes(self):
+        # The first argument of the mock_adjust_multiclass_nonspecific function must be a numpy array
+        self.assertIsInstance(mock_adjust_multiclass_nonspecific.call_args[0][0], np.ndarray)
+
+    @patch('cfnow._model_standardizer._adjust_multiclass_nonspecific')
+    def test__standardize_predictor_single_10_multiple_31_two_classes(self, mock_adjust_multiclass_nonspecific):
         # The predictor returns:
         # * Single prediction = [Num1, Num2]
         # * Multiple prediction = [[Num1, Num2], [Num1, Num2], [Num1, Num2]]
         # We use a nonspecific strategy that must work for 2 input
         # Results must be, respectively, <0.5, ==0.5 and >0.5
+
+        mock_adjust_multiclass_nonspecific.side_effect = _adjust_multiclass_nonspecific
+
         def _model_predict_proba(x): return [0, 1] if len(x) == 1 else [[0, 1], [1, 1], [1, 0]]
         mp1 = _standardize_predictor(self.factual, _model_predict_proba)
 
@@ -163,6 +175,9 @@ class TestScriptBase(unittest.TestCase):
         self.assertTrue(multiple_prediction[0] < 0.5)
         self.assertTrue(multiple_prediction[1] == 0.5)
         self.assertTrue(multiple_prediction[2] > 0.5)
+
+        # The first argument of the mock_adjust_multiclass_nonspecific function must be a numpy array
+        self.assertIsInstance(mock_adjust_multiclass_nonspecific.call_args[0][0], np.ndarray)
 
     def test__standardize_predictor_single_11_multiple_31(self):
         # The predictor returns:
