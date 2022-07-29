@@ -65,19 +65,19 @@ while True:
     for g_params in combination_param_greedy_partition:
         print(f'Running hyperparameter search with parameters: {g_params}')
         print(g_data_model[0][:50])
-        print (g_data_model[2])
-        print (g_data_model[3])
-        print (g_data_model[4])
-        print (g_data_model[5])
+        print(g_data_model[2])
+        print(g_data_model[3])
+        print(g_data_model[4])
+        print(g_data_model[5])
 
 
         factual = g_data_model[0]
         model = g_data_model[1]
         feat_types = g_data_model[4]
-        cf_out = cfnow_function(factual, model.predict, cf_strategy='greedy', **g_params)
+        cf_out = cfnow_function(factual, model, cf_strategy='greedy', **g_params)
 
-        print(len(cf_out.cf_replaced_words))
-        print (len (cf_out.cf_not_optimized_replaced_words))
+        # print(len(cf_out.cf_replaced_words))
+        # print(len(cf_out.cf_not_optimized_replaced_words))
         print('\n')
 
 

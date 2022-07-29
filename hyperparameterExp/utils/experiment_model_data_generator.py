@@ -70,7 +70,7 @@ def tabular_data_model_paths():
         columns_dataframe = pd.read_csv(f'{DATA_DIR}/TABULAR_DATA/{dataset}.csv', nrows=0)
 
         feat_types = {col: 'num' if col in dataset_var_types['numerical'] else 'cat'
-                      for col in columns_dataframe.columns}
+                      for col in columns_dataframe.columns if col != 'output'}
 
         for r_idx in range(n):
             array_model_data_paths.append([
@@ -168,9 +168,8 @@ def text_data_model_paths():
 
     return array_model_data_paths
 
-
 # Load a TF model
-def load_tf_model(model_path: str, memory_limit: int) -> tf.keras.Model:
+def load_tf_model(model_path: str, memory_limit: int, compile_model: bool = True) -> tf.keras.Model:
     """
     Load a TF model
     :param model_path: path to the model
@@ -182,7 +181,7 @@ def load_tf_model(model_path: str, memory_limit: int) -> tf.keras.Model:
     # tf.config.experimental.set_virtual_device_configuration(gpus[0], [
     #     tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)])
 
-    model = tf.keras.models.load_model(model_path)
+    model = tf.keras.models.load_model(model_path, compile=compile_model)
 
     return model
 
@@ -208,9 +207,9 @@ def load_mobilenetv2_model(memory_limit: int) -> tf.keras.Model:
 
     return model
 
-#
-# def textual_classifier(input_texts):
-#     return tf.sigmoid(reloaded_model(tf.constant(input_texts))).numpy()
+
+def textual_classifier(model):
+    return lambda input_texts: tf.sigmoid(model(tf.constant(input_texts))).numpy()
 
 
 class DataModelGenerator:
@@ -253,11 +252,11 @@ class DataModelGenerator:
         """
         if model_path != self.current_model_path:
             if self.data_type == 'tabular':
-                self.model = load_tf_model(model_path, self.gpu_memory_fraction)
+                self.model = load_tf_model(model_path, self.gpu_memory_fraction, compile_model=False).predict
             elif self.data_type == 'image':
                 self.model = load_mobilenetv2_model(self.gpu_memory_fraction)
             elif self.data_type == 'text':
-                self.model = load_tf_model(model_path, self.gpu_memory_fraction)
+                self.model = textual_classifier(load_tf_model(model_path, self.gpu_memory_fraction))
             else:
                 raise ValueError(f'Data type {self.data_type} not supported')
             self.current_model_path = model_path
@@ -273,7 +272,7 @@ class DataModelGenerator:
             data_path, model_path, feat_types, idx_row = self.experiment_idx[self.idx_list[self.current_idx]]
             self.current_idx += 1
             if self.data_type == 'tabular':
-                row = pd.read_csv(data_path, nrows=1, skiprows=idx_row).iloc[0]
+                row = pd.read_csv(data_path, nrows=1, skiprows=idx_row).iloc[0, :-1]
             elif self.data_type == 'image':
                 # Make adjustments for image work in the classifier
                 img = Image.open(f'{data_path}')
