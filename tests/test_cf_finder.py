@@ -5,7 +5,8 @@ import cv2
 import pandas as pd
 import numpy as np
 
-from cfnow.cf_finder import _CFBaseResponse, _CFTabular, _CFImage, _CFText, find_tabular, find_image, find_text
+from cfnow.cf_finder import _CFBaseResponse, _CFTabular, _CFImage, _CFText, _define_tabu_size, \
+    find_tabular, find_image, find_text
 
 
 class TestCFBaseResponse(unittest.TestCase):
@@ -178,7 +179,7 @@ class TestScriptBase(unittest.TestCase):
     cf_img_default_limit_seconds = 120
     cf_img_default_ft_change_factor = 0.1
     cf_img_default_ft_it_max = None
-    cf_img_default_size_tabu = None
+    cf_img_default_size_tabu = 0.5
     cf_img_default_ft_threshold_distance = 0.01
     cf_img_default_avoid_back_original = None
     cf_img_default_threshold_changes = 1000
@@ -1524,6 +1525,7 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_CFImage.call_args[1]['replace_img'].tolist(), replace_img.tolist())
 
     @patch('cfnow.cf_finder._CFText')
+    @patch('cfnow.cf_finder._define_tabu_size')
     @patch('cfnow.cf_finder.warnings')
     @patch('cfnow.cf_finder._fine_tuning')
     @patch('cfnow.cf_finder._get_ohe_params')
@@ -1540,7 +1542,7 @@ class TestScriptBase(unittest.TestCase):
             self, mock_random_generator, mock_greedy_generator, mock_datetime, mock_text_to_token_vector,
             mock_text_to_change_vector, mock_convert_change_vectors_func, mock_adjust_textual_classifier,
             mock_standardize_predictor, mock_logging, mock_get_ohe_params, mock_fine_tuning, mock_warnings,
-            mock_CFText):
+            mock_define_tabu_size, mock_CFText):
         text_input = 'I like music'
 
         def _textual_classifier_predict(array_txt_input):
@@ -1558,7 +1560,7 @@ class TestScriptBase(unittest.TestCase):
         limit_seconds = 120
         ft_change_factor = 0.1
         ft_it_max = 1000
-        size_tabu = None
+        size_tabu = 0.5
         ft_threshold_distance = 0.01
         avoid_back_original = False
         threshold_changes = 1000
@@ -1618,6 +1620,11 @@ class TestScriptBase(unittest.TestCase):
         self.assertListEqual(mock_get_ohe_params.call_args[0][0].tolist(), factual_df.iloc[0].tolist())
         self.assertEqual(mock_get_ohe_params.call_args[0][1], True)
 
+        # Check if define_tabu_size was called with the right parameters
+        self.assertEqual(len(mock_define_tabu_size.call_args[0]), 2)
+        self.assertEqual(mock_define_tabu_size.call_args[0][0], 0.5)
+        self.assertEqual(mock_define_tabu_size.call_args[0][1].tolist(), factual_df.iloc[0].to_numpy().tolist())
+
         # Check if cf_finder was called with the right parameters
         self.assertEqual(len(mock_greedy_generator.call_args[1]), 16)
         self.assertEqual(mock_greedy_generator.call_args[1]['cf_data_type'], 'text')
@@ -1632,7 +1639,7 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_greedy_generator.call_args[1]['increase_threshold'], increase_threshold)
         self.assertEqual(mock_greedy_generator.call_args[1]['tabu_list'], None)
         self.assertEqual(mock_greedy_generator.call_args[1]['avoid_back_original'], False)
-        self.assertEqual(mock_greedy_generator.call_args[1]['size_tabu'], 1)
+        self.assertEqual(mock_greedy_generator.call_args[1]['size_tabu'], mock_define_tabu_size())
         self.assertEqual(mock_greedy_generator.call_args[1]['ft_time'], None)
         self.assertEqual(mock_greedy_generator.call_args[1]['ft_time_limit'], None)
         self.assertEqual(mock_greedy_generator.call_args[1]['threshold_changes'], 1000)
@@ -1651,7 +1658,7 @@ class TestScriptBase(unittest.TestCase):
                          {'0_0': 'cat', '0_1': 'cat', '1_0': 'cat', '1_1': 'cat', '2_0': 'cat', '2_1': 'cat'})
         self.assertEqual(mock_fine_tuning.call_args[1]['ft_change_factor'], ft_change_factor)
         self.assertEqual(mock_fine_tuning.call_args[1]['it_max'], it_max)
-        self.assertEqual(mock_fine_tuning.call_args[1]['size_tabu'], 1)
+        self.assertEqual(mock_fine_tuning.call_args[1]['size_tabu'], mock_define_tabu_size())
         self.assertEqual(mock_fine_tuning.call_args[1]['ft_it_max'], ft_it_max)
         self.assertEqual(mock_fine_tuning.call_args[1]['ft_threshold_distance'], ft_threshold_distance)
         self.assertEqual(mock_fine_tuning.call_args[1]['time_start'], mock_datetime.now())
@@ -1710,7 +1717,7 @@ class TestScriptBase(unittest.TestCase):
         limit_seconds = 120
         ft_change_factor = 0.1
         ft_it_max = 1000
-        size_tabu = None
+        size_tabu = 0.5
         ft_threshold_distance = 0.01
         avoid_back_original = False
         verbose = False
@@ -1784,7 +1791,7 @@ class TestScriptBase(unittest.TestCase):
         limit_seconds = 120
         ft_change_factor = 0.1
         ft_it_max = 1000
-        size_tabu = None
+        size_tabu = 0.5
         ft_threshold_distance = 0.01
         avoid_back_original = False
         verbose = False
@@ -1855,7 +1862,7 @@ class TestScriptBase(unittest.TestCase):
         limit_seconds = 120
         ft_change_factor = 0.1
         ft_it_max = 1000
-        size_tabu = None
+        size_tabu = 0.5
         ft_threshold_distance = 0.01
         avoid_back_original = False
         verbose = False
@@ -1926,7 +1933,7 @@ class TestScriptBase(unittest.TestCase):
         limit_seconds = 120
         ft_change_factor = 0.1
         ft_it_max = 1000
-        size_tabu = None
+        size_tabu = 0.5
         ft_threshold_distance = 0.01
         avoid_back_original = False
         verbose = False
@@ -1998,7 +2005,7 @@ class TestScriptBase(unittest.TestCase):
         limit_seconds = 120
         ft_change_factor = 0.1
         ft_it_max = 1000
-        size_tabu = None
+        size_tabu = 0.5
         ft_threshold_distance = 0.01
         avoid_back_original = False
         verbose = False
@@ -2070,7 +2077,7 @@ class TestScriptBase(unittest.TestCase):
         limit_seconds = 120
         ft_change_factor = 0.1
         ft_it_max = 1000
-        size_tabu = None
+        size_tabu = 0.5
         ft_threshold_distance = 0.01
         avoid_back_original = False
         verbose = False
@@ -2142,7 +2149,7 @@ class TestScriptBase(unittest.TestCase):
         limit_seconds = 120
         ft_change_factor = 0.1
         ft_it_max = 1000
-        size_tabu = None
+        size_tabu = 0.5
         ft_threshold_distance = 0.01
         avoid_back_original = False
         verbose = False
@@ -2269,84 +2276,6 @@ class TestScriptBase(unittest.TestCase):
     @patch('cfnow.cf_finder.datetime')
     @patch('cfnow.cf_finder._greedy_generator')
     @patch('cfnow.cf_finder._random_generator')
-    def test__find_text_tabu_larger(
-            self, mock_random_generator, mock_greedy_generator, mock_datetime, mock_text_to_token_vector,
-            mock_text_to_change_vector, mock_convert_change_vectors_func, mock_adjust_textual_classifier,
-            mock_standardize_predictor, mock_logging, mock_get_ohe_params, mock_fine_tuning, mock_warnings,
-            mock_CFText):
-        text_input = 'I like music'
-
-        def _textual_classifier_predict(array_txt_input):
-            if array_txt_input[0] == 'I like music':
-                return [0.0]
-            else:
-                return [1.0]
-
-        mock_textual_classifier = MagicMock()
-        mock_textual_classifier.side_effect = lambda x: _textual_classifier_predict(x)
-
-        word_replace_strategy = 'remove'
-        cf_strategy = 'greedy'
-        increase_threshold = -1
-        it_max = 1000
-        limit_seconds = 120
-        ft_change_factor = 0.1
-        ft_it_max = 1000
-
-        size_tabu = 1000
-
-        ft_threshold_distance = 0.01
-        avoid_back_original = False
-        verbose = False
-
-        factual_df = pd.DataFrame([{'0_0': 1, '0_1': 0, '1_0': 1, '1_1': 0, '2_0': 1, '2_1': 0}])
-        mock_text_to_token_vector.return_value = (
-            ['I', 'like', 'music'],
-            factual_df,
-            [['I', ''], ['like', ''], ['music', '']])
-
-        def _mock_mts(factual):
-            if type(factual) == pd.DataFrame:
-                if np.array_equal(factual.to_numpy(), factual_df.to_numpy()):
-                    return [0.0]
-            if type(factual) == np.ndarray:
-                if np.array_equal(factual, factual_df.to_numpy()):
-                    return [0.0]
-
-            return [1.0]
-
-        mock_mts = MagicMock()
-        mock_mts.side_effect = _mock_mts
-
-        mock_standardize_predictor.return_value = mock_mts
-
-        mock_get_ohe_params.return_value = ([[0, 1], [2, 3], [4, 5]], [0, 1, 2, 3, 4, 5])
-
-        response_obj = find_text(
-            text_input, mock_textual_classifier, word_replace_strategy, cf_strategy, increase_threshold, it_max,
-            limit_seconds, ft_change_factor, ft_it_max, size_tabu, ft_threshold_distance, avoid_back_original,
-            verbose)
-
-        # Check if warn was issued
-        mock_warnings.warn.assert_called_once()
-
-        # Check if Tabu list size is correct
-        self.assertEqual(mock_greedy_generator.call_args[1]['size_tabu'], 2)
-        self.assertEqual(mock_fine_tuning.call_args[1]['size_tabu'], 2)
-
-    @patch('cfnow.cf_finder._CFText')
-    @patch('cfnow.cf_finder.warnings')
-    @patch('cfnow.cf_finder._fine_tuning')
-    @patch('cfnow.cf_finder._get_ohe_params')
-    @patch('cfnow.cf_finder.logging')
-    @patch('cfnow.cf_finder._standardize_predictor')
-    @patch('cfnow.cf_finder._adjust_textual_classifier')
-    @patch('cfnow.cf_finder._convert_change_vectors_func')
-    @patch('cfnow.cf_finder._text_to_change_vector')
-    @patch('cfnow.cf_finder._text_to_token_vector')
-    @patch('cfnow.cf_finder.datetime')
-    @patch('cfnow.cf_finder._greedy_generator')
-    @patch('cfnow.cf_finder._random_generator')
     def test__find_text_no_cf_found(
             self, mock_random_generator, mock_greedy_generator, mock_datetime, mock_text_to_token_vector,
             mock_text_to_change_vector, mock_convert_change_vectors_func, mock_adjust_textual_classifier,
@@ -2370,7 +2299,7 @@ class TestScriptBase(unittest.TestCase):
         limit_seconds = 120
         ft_change_factor = 0.1
         ft_it_max = 1000
-        size_tabu = None
+        size_tabu = 0.5
         ft_threshold_distance = 0.01
         avoid_back_original = False
         verbose = False
@@ -2418,5 +2347,40 @@ class TestScriptBase(unittest.TestCase):
 
         self.assertEqual(mock_CFText.call_args[1]['converter'], mock_convert_change_vectors_func())
         self.assertEqual(mock_CFText.call_args[1]['text_replace'], [['I', ''], ['like', ''], ['music', '']])
+
+    def test_define_tabu_size_float_example(self):
+        size_tabu = 0.5
+        factual_vector = pd.Series({'0': 1, '1': 0, '2': 1, '3': 0, '4': 1, '5': 0})
+        self.assertEqual(_define_tabu_size(size_tabu, factual_vector), 3)
+
+    def test_define_tabu_size_int_example(self):
+        size_tabu = 4
+        factual_vector = pd.Series({'0': 1, '1': 0, '2': 1, '3': 0, '4': 1, '5': 0})
+        self.assertEqual(_define_tabu_size(size_tabu, factual_vector), 4)
+
+    def test_define_tabu_size_float_larger_than_1(self):
+        size_tabu = 1.5
+        factual_vector = pd.Series({'0': 1, '1': 0, '2': 1, '3': 0, '4': 1, '5': 0})
+        with self.assertRaises(AttributeError):
+            _define_tabu_size(size_tabu, factual_vector)
+
+    def test_define_tabu_size_float_lower_than_0(self):
+        size_tabu = -0.5
+        factual_vector = pd.Series({'0': 1, '1': 0, '2': 1, '3': 0, '4': 1, '5': 0})
+        with self.assertRaises(AttributeError):
+            _define_tabu_size(size_tabu, factual_vector)
+
+    @patch('cfnow.cf_finder.warnings')
+    def test_define_tabu_size_int_larger_than_factual_vector_size(self, mock_warnings):
+        size_tabu = 7
+        factual_vector = pd.Series({'0': 1, '1': 0, '2': 1, '3': 0, '4': 1, '5': 0})
+
+        out_size_tabu = _define_tabu_size(size_tabu, factual_vector)
+
+        # Assert warnings was called
+        mock_warnings.warn.assert_called_once()
+
+        # Assert the out_size_tabu is the length of the factual vector minus 1
+        self.assertEqual(out_size_tabu, factual_vector.size - 1)
 
 

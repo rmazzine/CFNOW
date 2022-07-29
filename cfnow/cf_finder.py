@@ -115,6 +115,27 @@ class _CFText(_CFBaseResponse):
         self.cf_not_optimized_replaced_words = [w[0] for w in text_replace_valid[replaced_not_optimized_feats_idx]]
 
 
+def _define_tabu_size(size_tabu, factual_vector):
+    """
+    Define the tabu size for the tabu search
+    :param size_tabu: The tabu size provided by the user
+    :param factual_vector: Factual vector which a CF will be created
+    :return: The tabu size to be used
+    """
+    if type(size_tabu) is float:
+        if size_tabu < 0.0 or size_tabu > 1.0:
+            raise AttributeError(f'size_tabu must be between 0.0 and 1.0 and not {size_tabu}')
+        size_tabu = int(round(size_tabu * len(factual_vector.index)))
+    else:
+        # If Tabu size list is larger than the number of features issue a warning and reduce to size_features - 1
+        if len(factual_vector) < size_tabu:
+            size_tabu_new = len(factual_vector) - 1
+            warnings.warn(f'The number of features ({len(factual_vector)}) is lower than the Tabu list size ({size_tabu}),'
+                          f'then, we reduced to the number of features minus 1 (={size_tabu_new})')
+            size_tabu = size_tabu_new
+    return size_tabu
+
+
 def find_tabular(
         factual: pd.Series,
         model_predict_proba,
@@ -125,7 +146,7 @@ def find_tabular(
         limit_seconds: int = 120,
         ft_change_factor: float = 0.1,
         ft_it_max: int = 1000,
-        size_tabu: int = 5,
+        size_tabu: (int, float) = 5,
         ft_threshold_distance: float = 0.01,
         has_ohe: bool = False,
         avoid_back_original: bool = False,
@@ -155,8 +176,9 @@ def find_tabular(
     :type ft_change_factor: float
     :param ft_it_max: (optional) Maximum number of iterations for CF optimization step. Default=1000
     :type ft_it_max: int
-    :param size_tabu: (optional) Size of Tabu Search list. Default=5
-    :type size_tabu: int
+    :param size_tabu: (optional) Size of tabu list, if float it's the share of features,
+    if int it's the exact number defined. Default=5
+    :type size_tabu: int, float
     :param ft_threshold_distance: (optional) Threshold for CF optimization enhancement, if improvement is below the
     threshold, the optimization will be stopped. Default=0.01
     :type ft_threshold_distance: float
@@ -194,12 +216,7 @@ def find_tabular(
     if feat_types is None:
         feat_types = {c: 'num' for c in factual.index}
 
-    # If Tabu size list is larger than the number of features issue a warning and reduce to size_features - 1
-    if len(factual) < size_tabu:
-        size_tabu_new = len(factual) - 1
-        warnings.warn(f'The number of features ({len(factual)}) is lower than the Tabu list size ({size_tabu}),'
-                      f'then, we reduced to the number of features minus 1 (={size_tabu_new})')
-        size_tabu = size_tabu_new
+    size_tabu = _define_tabu_size(size_tabu, factual)
 
     # Timer now
     time_start = datetime.now()
@@ -297,7 +314,7 @@ def find_image(
         limit_seconds: int = 120,
         ft_change_factor: float = 0.1,
         ft_it_max: int = None,
-        size_tabu: int = None,
+        size_tabu: (int, float) = 0.5,
         ft_threshold_distance: float = 0.01,
         avoid_back_original: bool = None,
         threshold_changes: int = 1000,
@@ -335,8 +352,9 @@ def find_image(
     :param ft_it_max: (optional) Maximum number of iterations for CF optimization step.
     Default=1000 (greedy), 100 (random)
     :type ft_it_max: int
-    :param size_tabu: (optional) Size of Tabu Search list. Default= 1/2 of number of segments
-    :type size_tabu: int
+    :param size_tabu: (optional) (optional) Size of tabu list, if float it's the share of features,
+    if int it's the exact number defined. Default=0.5
+    :type size_tabu: int, float
     :param ft_threshold_distance: (optional) Threshold for CF optimization enhancement, if improvement is below the
     threshold, the optimization will be stopped. Default=0.01
     :type ft_threshold_distance: float
@@ -407,16 +425,7 @@ def find_image(
     # Initially, all segments are activated (equal to 1)
     factual = pd.Series(np.array([1]*(np.max(segments) + 1)))
 
-    # If not defined, tabu is the half the factual size
-    if size_tabu is None:
-        size_tabu = int(len(factual)/2)
-
-    # If Tabu size list is larger than the number of segments issue a warning and reduce to size_features - 1
-    if len(factual) < size_tabu:
-        size_tabu_new = len(factual) - 1
-        warnings.warn(f'The number of features ({len(factual)}) is lower than the Tabu list size ({size_tabu}),'
-                      f'then, we reduced to the number of features minus 1 (={size_tabu_new})')
-        size_tabu = size_tabu_new
+    size_tabu = _define_tabu_size(size_tabu, factual)
 
     # Timer now
     time_start = datetime.now()
@@ -525,7 +534,7 @@ def find_text(
         limit_seconds: int = 120,
         ft_change_factor: float = 0.1,
         ft_it_max: int = 1000,
-        size_tabu: int = None,
+        size_tabu: (int, float) = 0.5,
         ft_threshold_distance: float = 0.01,
         avoid_back_original: bool = False,
         threshold_changes: int = 1000,
@@ -553,9 +562,9 @@ def find_text(
     :type ft_change_factor: float
     :param ft_it_max: (optional) Maximum number of iterations for CF optimization step. Default=1000
     :type ft_it_max: int
-    :param size_tabu: (optional) Size of Tabu Search list. Default= 1/2 the size of the vector created to
-    represent input text
-    :type size_tabu: int
+    :param size_tabu: (optional) (optional) Size of tabu list, if float it's the share of features,
+    if int it's the exact number defined. Default=0.5
+    :type size_tabu: int, float
     :param ft_threshold_distance: (optional) Threshold for CF optimization enhancement, if improvement is below the
     threshold, the optimization will be stopped. Default=0.01
     :type ft_threshold_distance: float
@@ -633,16 +642,7 @@ def find_text(
     # Generate OHE parameters if it has OHE variables
     ohe_list, ohe_indexes = _get_ohe_params(factual.iloc[0], True)
 
-    # Define Tabu list size if it's none
-    if size_tabu is None:
-        size_tabu = int(len(ohe_list)/2)
-
-    # If Tabu size list is larger than the number of segments issue a warning and reduce to size_features - 1
-    if len(ohe_list) < size_tabu:
-        size_tabu_new = len(ohe_list) - 1
-        warnings.warn(f'The number of features ({len(ohe_list)}) is lower than the Tabu list size ({size_tabu}),'
-                      f'then, we reduced to the number of features minus 1 (={size_tabu_new})')
-        size_tabu = size_tabu_new
+    size_tabu = _define_tabu_size(size_tabu, factual.iloc[0])
 
     # Generate CF using a CF finder
     cf_out = cf_finder(cf_data_type=cf_data_type,
