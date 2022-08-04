@@ -11,8 +11,10 @@ to ft_change_factor and momentum (feature*ft_change_factor + momentum)
 import math
 import copy
 import logging
+import operator
 from collections import deque
 from datetime import datetime
+from functools import reduce
 from itertools import combinations
 
 import numpy as np
@@ -240,7 +242,7 @@ def _calc_num_possible_changes(change_feat_options, num_placeholders, ohe_placeh
                     comb_rows.append(2)
             # Then, after scanning all features in a single change (icc), we calculate the number of
             # derived modifications by multiplying the items inside comb_rows
-            corrected_num_changes += np.prod(comb_rows)
+            corrected_num_changes += reduce(operator.mul, comb_rows)
     else:
         # The sample will be 1 above the limit threshold
         corrected_num_changes = threshold_changes + 1
