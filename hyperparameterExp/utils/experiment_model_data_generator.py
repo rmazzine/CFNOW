@@ -53,15 +53,17 @@ def tabular_data_model_paths():
     For model: Takes the model for each respective dataset
     :return:
     """
-    data_n_rows = {'0_Adult': 2, '1_Adult': 2, '0_BalanceScale': 2, '1_BalanceScale': 2, '0_BCW': 2, '1_BCW': 2,
-                   '0_CarEvaluation': 1, '1_CarEvaluation': 1, '0_Chess': 1, '1_Chess': 1, '0_CMSC': 1, '1_CMSC': 1,
-                   '0_DefaultOfCCC': 1, '1_DefaultOfCCC': 1, '0_Ecoli': 1, '1_Ecoli': 1, '1_HayesRoth': 1,
-                   '2_HayesRoth': 1, '0_InternetAdv': 1, '1_InternetAdv': 1, '0_Iris': 1, '1_Iris': 1, '1_ISOLET': 1,
-                   '2_ISOLET': 1, '1_Lymphography': 1, '2_Lymphography': 1, '0_MagicGT': 1, '1_MagicGT': 1,
-                   '0_Nursery': 1, '1_Nursery': 1, '1_PBC': 1, '2_PBC': 1, '1_SDD': 1, '2_SDD': 1,
-                   '0_SoybeanSmall': 1, '1_SoybeanSmall': 1, '0_StatlogGC': 1, '1_StatlogGC': 1,
-                   '0_StudentPerf': 1, '1_StudentPerf': 1, '0_TicTacToe': 1, '1_TicTacToe': 1, '1_Wine': 1,
-                   '2_Wine': 1}
+    # data_n_rows = {'0_Adult': 2, '1_Adult': 2, '0_BalanceScale': 2, '1_BalanceScale': 2, '0_BCW': 2, '1_BCW': 2,
+    #                '0_CarEvaluation': 1, '1_CarEvaluation': 1, '0_Chess': 1, '1_Chess': 1, '0_CMSC': 1, '1_CMSC': 1,
+    #                '0_DefaultOfCCC': 1, '1_DefaultOfCCC': 1, '0_Ecoli': 1, '1_Ecoli': 1, '1_HayesRoth': 1,
+    #                '2_HayesRoth': 1, '0_InternetAdv': 1, '1_InternetAdv': 1, '0_Iris': 1, '1_Iris': 1, '1_ISOLET': 1,
+    #                '2_ISOLET': 1, '1_Lymphography': 1, '2_Lymphography': 1, '0_MagicGT': 1, '1_MagicGT': 1,
+    #                '0_Nursery': 1, '1_Nursery': 1, '1_PBC': 1, '2_PBC': 1, '1_SDD': 1, '2_SDD': 1,
+    #                '0_SoybeanSmall': 1, '1_SoybeanSmall': 1, '0_StatlogGC': 1, '1_StatlogGC': 1,
+    #                '0_StudentPerf': 1, '1_StudentPerf': 1, '0_TicTacToe': 1, '1_TicTacToe': 1, '1_Wine': 1,
+    #                '2_Wine': 1}
+
+    data_n_rows = {'0_Adult': 1}
 
     array_model_data_paths = []
     for dataset, n in data_n_rows.items():
@@ -112,11 +114,13 @@ def image_data_paths():
     toasters: 2
     :return:
     """
-    data_n_rows = {'acoustic guitars': 4, 'barrows': 2, 'beach wagons': 2, 'beacons': 2, 'box turtles': 2,
-                   'Chihuahuas': 2, 'churchs': 2, 'container ships': 2, 'electric guitars': 2, 'envelopes': 2,
-                   'espresso makers': 2, 'fire engines': 2, 'military uniforms': 2, 'missiles': 2, 'mouses': 2,
-                   'pencil sharpeners': 2, 'Polaroid cameras': 2, 'revolvers': 2, 'rifles': 2, 'rugby balls': 2,
-                   'soccer balls': 2, 'tiger cats': 2, 'tigers': 2, 'toasters': 2}
+    # data_n_rows = {'acoustic guitars': 4, 'barrows': 2, 'beach wagons': 2, 'beacons': 2, 'box turtles': 2,
+    #                'Chihuahuas': 2, 'churchs': 2, 'container ships': 2, 'electric guitars': 2, 'envelopes': 2,
+    #                'espresso makers': 2, 'fire engines': 2, 'military uniforms': 2, 'missiles': 2, 'mouses': 2,
+    #                'pencil sharpeners': 2, 'Polaroid cameras': 2, 'revolvers': 2, 'rifles': 2, 'rugby balls': 2,
+    #                'soccer balls': 2, 'tiger cats': 2, 'tigers': 2, 'toasters': 2}
+
+    data_n_rows = {'acoustic guitars': 1}
 
     array_data_paths = []
     for dataset, n in data_n_rows.items():
@@ -146,8 +150,8 @@ def text_data_model_paths():
     twitter_neg 10 | twitter_neg: 15
     :return:
     """
-
-    data_n_rows = {'imdb_neg': 15, 'imdb_pos': 10, 'twitter_neg': 10, 'twitter_pos': 15}
+    data_n_rows = {'imdb_neg': 1}
+    # data_n_rows = {'imdb_neg': 15, 'imdb_pos': 10, 'twitter_neg': 10, 'twitter_pos': 15}
     array_model_data_paths = []
     for dataset, n in data_n_rows.items():
 
@@ -168,6 +172,7 @@ def text_data_model_paths():
 
     return array_model_data_paths
 
+
 # Load a TF model
 def load_tf_model(model_path: str, memory_limit: int, compile_model: bool = True) -> tf.keras.Model:
     """
@@ -177,9 +182,9 @@ def load_tf_model(model_path: str, memory_limit: int, compile_model: bool = True
     :return: the model
     """
 
-    # gpus = tf.config.experimental.list_physical_devices('GPU')
-    # tf.config.experimental.set_virtual_device_configuration(gpus[0], [
-    #     tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)])
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    tf.config.experimental.set_virtual_device_configuration(gpus[0], [
+        tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)])
 
     model = tf.keras.models.load_model(model_path, compile=compile_model)
 
@@ -205,7 +210,7 @@ def load_mobilenetv2_model(memory_limit: int) -> tf.keras.Model:
         hub.KerasLayer(classifier_url, input_shape=IMAGE_SHAPE + (3,), trainable=True)
     ])
 
-    return model
+    return model.predict
 
 
 def textual_classifier(model):

@@ -5,35 +5,35 @@ import itertools
 TABULAR_EXPERIMENTS = {
     'increase_threshold': [-1.0, 0.00001],
     'it_max': [100, 1000, 5000],
-    'limit_seconds': [10, 60, 120],
+    'limit_seconds': [10, 30, 120],
     'ft_change_factor': [0.1, 0.5],
     'ft_it_max': [100, 1000, 5000],
     'size_tabu': [5, 0.1, 0.2, 0.5, 0.9],
     'ft_threshold_distance': [-1.0, 0.00001],
     'avoid_back_original': [True, False],
-    'threshold_changes': [100, 5000],
+    'threshold_changes': [300],
 }
 
 IMAGE_EXPERIMENTS = {
     'increase_threshold': [-1.0, 0.00001],
     'it_max': [100, 500, 1000],
-    'limit_seconds': [10, 60, 120],
+    'limit_seconds': [10, 30, 120],
     'ft_it_max': [100, 500, 1000],
     'size_tabu': [5, 0.1, 0.2, 0.5, 0.9],
     'ft_threshold_distance': [-1.0, 0.00001],
     'avoid_back_original': [True, False],
-    'threshold_changes': [100, 5000],
+    'threshold_changes': [300],
 }
 
 TEXT_EXPERIMENTS = {
     'increase_threshold': [-1.0, 0.00001],
     'it_max': [100, 1000, 2000],
-    'limit_seconds': [10, 60, 120],
+    'limit_seconds': [10, 30, 120],
     'ft_it_max': [100, 1000, 2000],
     'size_tabu': [5, 0.1, 0.2, 0.5, 0.9],
     'ft_threshold_distance': [-1.0, 0.00001],
     'avoid_back_original': [True, False],
-    'threshold_changes': [100, 5000],
+    'threshold_changes': [300],
 }
 
 
