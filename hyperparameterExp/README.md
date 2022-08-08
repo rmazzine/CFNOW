@@ -23,4 +23,39 @@ export NUM_SAMPLE_PARAMETERS=100 # Number of parameters to be randomly sampled (
 python main.py
 ```
 
+## This experiment uses the following parameters
+### tabular
+* DATA_TYPE: tabular
+* NUM_PARTITIONS: 1
+* PARTITION_ID: 1
+* NUM_SAMPLE_PARAMETERS: 500 (represent 23.15% of total combinations)
+
+### image
+* DATA_TYPE: image
+* NUM_PARTITIONS: 1
+* PARTITION_ID: 1
+* NUM_SAMPLE_PARAMETERS: 250 (represent 23.15% of total combinations)
+
+### text
+* DATA_TYPE: text
+* NUM_PARTITIONS: 1
+* PARTITION_ID: 1
+* NUM_SAMPLE_PARAMETERS: 250 (represent 23.15% of total combinations)
+
 The partitions allow to run the experiments in parallel in multiple machines.
+
+## Docker run
+To run the experiments in Docker, go to the root directory of the project and run the following command:
+```shell
+docker build -t hyperparameterExp .
+dk run -t --gpus all -e DATA_TYPE=tabular -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=1 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results hyperparameterExp
+```
+
+## Reproducibility
+The experiments reported were generated with the following command:
+```shell
+docker build -t hyperparameterExp .
+ dk run -t --gpus all -e DATA_TYPE=tabular -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=500 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results ;
+ dk run -t --gpus all -e DATA_TYPE=image -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=250 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results ;
+ dk run -t --gpus all -e DATA_TYPE=text -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=250 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results
+```
