@@ -1,5 +1,6 @@
 import os
 import time
+import pickle
 import signal
 
 import numpy as np
@@ -12,6 +13,9 @@ from hyperparameterExp.utils.experiment_parameters_generator import experiment_p
 from hyperparameterExp.utils.experiment_model_data_generator import DataModelGenerator
 
 from cfnow.cf_finder import find_tabular, find_text, find_image
+
+# Get current script directory
+script_dir = os.path.dirname(os.path.realpath(__file__))
 
 VERBOSE = False
 
@@ -96,7 +100,7 @@ def make_experiment(factual, model, cf_strategy, parameters):
     def handler(signum, frame):
         raise TimeoutError
 
-    if not VERBOSE:
+    if VERBOSE:
         print(f'{DATA_TYPE} - {cf_strategy}\nParameters:\n')
         print(pd.Series(parameters))
 
@@ -199,6 +203,7 @@ number_random_exp = len(combination_param_random_partition)
 # Number of data points to be tested
 number_data_exp = len(dmg.experiment_idx)
 total_experiments = (number_greedy_exp + number_random_exp) * number_data_exp
+cf_times = []
 
 experiment_id = 0
 while True:
@@ -210,22 +215,52 @@ while True:
     model = g_data_model[1]
     feat_types = g_data_model[4]
 
-    # Greedy Experiments
+    if not os.path.exists(f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}'):
+        os.makedirs(f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}')
+
     # Inner loop: for each combination of parameters
-    # partition_g_exp_id = 0
-    # for g_params in combination_param_greedy_partition:
-    #     g_exp_result = make_experiment(factual, model, 'greedy', g_params)
-    #     if VERBOSE:
-    #         print(f'Partition {partition_g_exp_id + 1}/{len(combination_param_greedy_partition)} done')
-    #     partition_g_exp_id += 1
+
+    # Greedy Experiments
+    partition_g_exp_id = 0
+    for g_params in combination_param_greedy_partition:
+        g_exp_result = make_experiment(factual, model, 'greedy', g_params)
+
+        g_exp_result['experiment_id'] = partition_g_exp_id
+
+        g_exp_result_pd = pd.DataFrame([g_exp_result])
+        # Append pandas dataframe to a pickle file
+        g_exp_result_pd.to_pickle(
+            f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}/greedy_{partition_g_exp_id}_{PARTITION_ID}.pkl')
+
+        if VERBOSE:
+            print(f'Partition {partition_g_exp_id + 1}/{len(combination_param_greedy_partition)} done')
+        partition_g_exp_id += 1
+
+        cf_times.append(g_exp_result['cf_time'])
+        print(f'\rTotal time: {round(sum(cf_times)/60, 4)} min | '
+              f'Estimated Remaining: {round(sum(cf_times)/60*total_experiments/len(cf_times), 4)} min',
+              flush=True, end='')
 
     # Random Experiments
     partition_exp_r_id = 0
     for r_params in combination_param_random_partition:
         r_exp_result = make_experiment(factual, model, 'random', r_params)
-        if not VERBOSE:
+
+        r_exp_result['experiment_id'] = partition_exp_r_id
+
+        r_exp_result_pd = pd.DataFrame([r_exp_result])
+        # Append pandas dataframe to a pickle file
+        r_exp_result_pd.to_pickle(
+            f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}/random_{partition_exp_r_id}_{PARTITION_ID}.pkl')
+
+        if VERBOSE:
             print(f'Partition {partition_exp_r_id + 1}/{len(combination_param_random_partition)} done')
         partition_exp_r_id += 1
+
+        cf_times.append(r_exp_result['cf_time'])
+        print(f'\rTotal time: {round(sum(cf_times)/60, 4)} min | '
+              f'Estimated Remaining: {round(sum(cf_times)/60*total_experiments/len(cf_times), 4)} min',
+              flush=True, end='')
 
     if VERBOSE:
         print(f'Experiment {experiment_id + 1}/{len(dmg.experiment_idx)} done')
