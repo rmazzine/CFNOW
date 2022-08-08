@@ -1,6 +1,12 @@
 import os
+import sys
 import time
-import pickle
+import tensorflow as tf
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '5'
+tf.debugging.experimental.disable_dump_debug_info()
+# Append previous directory to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import signal
 
 import numpy as np
@@ -32,7 +38,6 @@ download_datasets()
 download_models()
 
 # Run experiments
-
 if DATA_TYPE == 'tabular':
     cfnow_function = find_tabular
 elif DATA_TYPE == 'image':
@@ -187,11 +192,6 @@ def make_experiment(factual, model, cf_strategy, parameters):
     return result_out
 
 
-def save_results(results, cf_strategy):
-    pd.DataFrame([])
-
-init_time = time.time()
-
 # Outer loop: for each data and model
 dmg = DataModelGenerator(data_type=DATA_TYPE)
 
@@ -223,57 +223,49 @@ while True:
     # Greedy Experiments
     partition_g_exp_id = 0
     for g_params in combination_param_greedy_partition:
+        g_time_start = time.time()
         g_exp_result = make_experiment(factual, model, 'greedy', g_params)
+        g_time_total = time.time() - g_time_start
 
         g_exp_result['experiment_id'] = partition_g_exp_id
 
         g_exp_result_pd = pd.DataFrame([g_exp_result])
         # Append pandas dataframe to a pickle file
         g_exp_result_pd.to_pickle(
-            f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}/greedy_{partition_g_exp_id}_{PARTITION_ID}.pkl')
+            f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}/'
+            f'greedy_{partition_g_exp_id}_{PARTITION_ID}_{experiment_id}.pkl')
 
         if VERBOSE:
             print(f'Partition {partition_g_exp_id + 1}/{len(combination_param_greedy_partition)} done')
         partition_g_exp_id += 1
+        experiment_id += 1
 
-        cf_times.append(g_exp_result['cf_time'])
-        print(f'\rTotal time: {round(sum(cf_times)/60, 4)} min | '
+        cf_times.append(g_time_total)
+        print(f'\r({DATA_TYPE}) Total time: {round(sum(cf_times)/60, 4)} min | '
               f'Estimated Remaining: {round(sum(cf_times)/60*total_experiments/len(cf_times), 4)} min',
               flush=True, end='')
 
     # Random Experiments
     partition_exp_r_id = 0
     for r_params in combination_param_random_partition:
+        r_time_start = time.time()
         r_exp_result = make_experiment(factual, model, 'random', r_params)
+        r_time_total = time.time() - r_time_start
 
         r_exp_result['experiment_id'] = partition_exp_r_id
 
         r_exp_result_pd = pd.DataFrame([r_exp_result])
         # Append pandas dataframe to a pickle file
         r_exp_result_pd.to_pickle(
-            f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}/random_{partition_exp_r_id}_{PARTITION_ID}.pkl')
+            f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}/'
+            f'random_{partition_exp_r_id}_{PARTITION_ID}_{experiment_id}.pkl')
 
         if VERBOSE:
             print(f'Partition {partition_exp_r_id + 1}/{len(combination_param_random_partition)} done')
         partition_exp_r_id += 1
+        experiment_id += 1
 
-        cf_times.append(r_exp_result['cf_time'])
-        print(f'\rTotal time: {round(sum(cf_times)/60, 4)} min | '
+        cf_times.append(r_time_total)
+        print(f'\r({DATA_TYPE}) Total time: {round(sum(cf_times)/60, 4)} min | '
               f'Estimated Remaining: {round(sum(cf_times)/60*total_experiments/len(cf_times), 4)} min',
               flush=True, end='')
-
-    if VERBOSE:
-        print(f'Experiment {experiment_id + 1}/{len(dmg.experiment_idx)} done')
-    experiment_id += 1
-
-
-total_time = time.time() - init_time
-
-print(f'Total time: {total_time}')
-
-
-# tabular_data_model_data_generator = DataModelGenerator(data_type='tabular')
-# for params in tabular_data_exp_params:
-#     factual, model, data_path, model_path, feat_types, idx_row = tabular_data_model_data_generator.next()
-
-# Create report
