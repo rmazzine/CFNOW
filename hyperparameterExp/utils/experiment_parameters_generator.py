@@ -11,7 +11,7 @@ TABULAR_EXPERIMENTS = {
     'size_tabu': [5, 0.1, 0.2, 0.5, 0.9],
     'ft_threshold_distance': [-1.0, 0.00001],
     'avoid_back_original': [True, False],
-    'threshold_changes': [1000],
+    'threshold_changes': [100, 1000],
 }
 
 IMAGE_EXPERIMENTS = {
@@ -22,7 +22,7 @@ IMAGE_EXPERIMENTS = {
     'size_tabu': [5, 0.1, 0.2, 0.5, 0.9],
     'ft_threshold_distance': [-1.0, 0.00001],
     'avoid_back_original': [True, False],
-    'threshold_changes': [1000],
+    'threshold_changes': [100, 1000],
 }
 
 TEXT_EXPERIMENTS = {
@@ -33,7 +33,7 @@ TEXT_EXPERIMENTS = {
     'size_tabu': [5, 0.1, 0.2, 0.5, 0.9],
     'ft_threshold_distance': [-1.0, 0.00001],
     'avoid_back_original': [True, False],
-    'threshold_changes': [1000],
+    'threshold_changes': [100, 1000],
 }
 
 
