@@ -182,7 +182,7 @@ def load_tf_model(model_path: str, memory_limit: int, compile_model: bool = True
 
     model = tf.keras.models.load_model(model_path, compile=compile_model)
 
-    return model
+    return lambda x: model.predict(x, verbose=0)
 
 
 # Load MobileNetV2 model
@@ -204,7 +204,7 @@ def load_mobilenetv2_model(memory_limit: int) -> tf.keras.Model:
         hub.KerasLayer(classifier_url, input_shape=IMAGE_SHAPE + (3,), trainable=True)
     ])
 
-    return model.predict
+    return lambda x: model.predict(x, verbose=0)
 
 
 def textual_classifier(model):
@@ -251,7 +251,7 @@ class DataModelGenerator:
         """
         if model_path != self.current_model_path:
             if self.data_type == 'tabular':
-                self.model = load_tf_model(model_path, self.gpu_memory_fraction, compile_model=False).predict
+                self.model = load_tf_model(model_path, self.gpu_memory_fraction, compile_model=False)
             elif self.data_type == 'image':
                 self.model = load_mobilenetv2_model(self.gpu_memory_fraction)
             elif self.data_type == 'text':
