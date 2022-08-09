@@ -30,6 +30,7 @@ DATA_TYPE = os.environ.get('DATA_TYPE')
 NUM_PARTITIONS = int(os.environ.get('NUM_PARTITIONS'))
 PARTITION_ID = int(os.environ.get('PARTITION_ID'))
 NUM_SAMPLE_PARAMETERS = int(os.environ.get('NUM_SAMPLE_PARAMETERS'))
+START_ID = int(os.environ.get('START_ID')) if os.environ.get('START_ID') else 0
 
 # Download data files
 download_datasets()
@@ -223,6 +224,11 @@ while True:
     # Greedy Experiments
     partition_g_exp_id = 0
     for g_params in combination_param_greedy_partition:
+
+        if experiment_id < START_ID:
+            experiment_id += 1
+            continue
+
         g_time_start = time.time()
         g_exp_result = make_experiment(factual, model, 'greedy', g_params)
         g_time_total = time.time() - g_time_start
@@ -248,6 +254,11 @@ while True:
     # Random Experiments
     partition_exp_r_id = 0
     for r_params in combination_param_random_partition:
+
+        if experiment_id < START_ID:
+            experiment_id += 1
+            continue
+
         r_time_start = time.time()
         r_exp_result = make_experiment(factual, model, 'random', r_params)
         r_time_total = time.time() - r_time_start

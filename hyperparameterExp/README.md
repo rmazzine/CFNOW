@@ -17,6 +17,7 @@ export DATA_TYPE=tabular # or image or text
 export NUM_PARTITIONS=5 # This divides the experiment into n (in this case 5) parts.
 export PARTITION_ID=1 # This is the id of the partition.
 export NUM_SAMPLE_PARAMETERS=100 # Number of parameters to be randomly sampled (for random and greedy). 
+export START_ID=0 # (optional) Starting ID to be used for the experiments.
 ```
 2 - Run the following command (with terminal in the directory `hyperparameterExp`)
 ```shell
