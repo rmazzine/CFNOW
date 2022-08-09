@@ -226,6 +226,7 @@ while True:
     for g_params in combination_param_greedy_partition:
 
         if experiment_id < START_ID:
+            partition_g_exp_id += 1
             experiment_id += 1
             continue
 
@@ -256,6 +257,7 @@ while True:
     for r_params in combination_param_random_partition:
 
         if experiment_id < START_ID:
+            partition_exp_r_id += 1
             experiment_id += 1
             continue
 
