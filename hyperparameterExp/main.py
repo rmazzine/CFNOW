@@ -205,7 +205,7 @@ number_random_exp = len(combination_param_random_partition)
 number_data_exp = len(dmg.experiment_idx)
 total_experiments = (number_greedy_exp + number_random_exp) * number_data_exp
 cf_times = []
-time_estimation_adjustment = 0
+skipped_experiments = 0
 
 experiment_id = 0
 while True:
@@ -227,7 +227,7 @@ while True:
     for g_params in combination_param_greedy_partition:
 
         if experiment_id < START_ID:
-            time_estimation_adjustment += 1
+            skipped_experiments += 1
             partition_g_exp_id += 1
             experiment_id += 1
             continue
@@ -250,9 +250,12 @@ while True:
         experiment_id += 1
 
         cf_times.append(g_time_total)
-        print(f'\r({DATA_TYPE}) Total time: {round(sum(cf_times)/60, 4)} min | '
+        total_time = round(sum(cf_times)/60, 4)
+        total_experiments_corrected = total_experiments - skipped_experiments
+        remaining_time = round(sum(cf_times)/60*total_experiments_corrected/len(cf_times) - total_time, 4)
+        print(f'\r({DATA_TYPE}) Total time: {total_time} min | '
               f'Estimated Remaining: '
-              f'{round(sum(cf_times)/60*total_experiments/(len(cf_times) - time_estimation_adjustment), 4)} min',
+              f'{remaining_time} min',
               flush=True, end='')
 
     # Random Experiments
@@ -260,7 +263,7 @@ while True:
     for r_params in combination_param_random_partition:
 
         if experiment_id < START_ID:
-            time_estimation_adjustment += 1
+            skipped_experiments += 1
             partition_exp_r_id += 1
             experiment_id += 1
             continue
@@ -283,7 +286,11 @@ while True:
         experiment_id += 1
 
         cf_times.append(r_time_total)
-        print(f'\r({DATA_TYPE}) Total time: {round(sum(cf_times)/60, 4)} min | '
+        total_time = round(sum(cf_times)/60, 4)
+        total_experiments_corrected = total_experiments - skipped_experiments
+        remaining_time = round(sum(cf_times)/60*total_experiments_corrected/(len(cf_times)) - total_time, 4)
+
+        print(f'\r({DATA_TYPE}) Total time: {total_time} min | '
               f'Estimated Remaining: '
-              f'{round(sum(cf_times)/60*total_experiments/(len(cf_times) - time_estimation_adjustment), 4)} min',
+              f'{remaining_time} min',
               flush=True, end='')
