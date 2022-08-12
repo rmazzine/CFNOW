@@ -33,10 +33,25 @@ def _calculate_change_factor(c_cf, changes_back_factual, feat_distances, changes
     # Now, calculate the probability for each different index
     cf_back_factual_probs = mp1c(cf_back_factual)
 
-    # Calculate how much a unitary change cause a change in probability
-    change_factor_feat = (c_cf_c - cf_back_factual_probs) / feat_distances[changes_back_original_idxs]
+    prediction_dif = (c_cf_c - cf_back_factual_probs)
 
-    return change_factor_feat
+    # Calculate how much a unitary change cause a change in probability
+    # The probability should be as negative as possible
+    # The distance (objective function) should be as close to zero as possible (as it cannot be negative)
+    # For a positive probability, we just multiply the prediction change by the distance
+    # For a negative probability, we just divide the prediction change by the distance
+    change_factor_feat = []
+    for f_pc, f_d in zip(prediction_dif, feat_distances[changes_back_original_idxs]):
+        if f_pc >= 0:
+            change_factor_feat.append(f_pc*f_d)
+        else:
+            # Avoid division by zero
+            if f_d == 0:
+                change_factor_feat.append(0)
+            else:
+                change_factor_feat.append(f_pc/f_d)
+
+    return np.array(change_factor_feat)
 
 
 def _generate_change_vectors(factual, factual_np, c_cf, _feat_idx_to_type, tabu_list,

@@ -46,7 +46,38 @@ class TestScriptBase(unittest.TestCase):
         change_factor_feat = _calculate_change_factor(c_cf, changes_back_factual, feat_distances,
                                                       changes_back_original_idxs,  mp1c, c_cf_c)
 
-        self.assertListEqual([0.1, 0.125, 0.25, 0.5], list([round(n, 3) for n in change_factor_feat]))
+        self.assertListEqual([0.1, 0.08, 0.04, 0.02], list([round(n, 3) for n in change_factor_feat]))
+        self.assertIsInstance(change_factor_feat, np.ndarray)
+
+    def test__calculate_change_factor_negative(self):
+        c_cf = np.array([1, 1, 1, 1])
+        changes_back_factual = np.array([[0.1, 0., 0., 0.], [0., 0.1, 0., 0.], [0., 0., 0.1, 0.], [0., 0., 0., 0.1]])
+        feat_distances = np.array([1, 0.8, 0.4, 0.2])
+        changes_back_original_idxs = [0, 1, 2, 3]
+        mp1c = MagicMock()
+        mp1c.return_value = np.array([0.7, 0.7, 0.5, 0.5])
+        c_cf_c = 0.6
+
+        change_factor_feat = _calculate_change_factor(c_cf, changes_back_factual, feat_distances,
+                                                      changes_back_original_idxs,  mp1c, c_cf_c)
+
+        self.assertListEqual([-0.1, round(-0.1/0.8, 3), 0.04, 0.02], list([round(n, 3) for n in change_factor_feat]))
+        self.assertIsInstance(change_factor_feat, np.ndarray)
+
+    def test__calculate_change_factor_negative_zero_distance(self):
+        # This should not happen as the objective function should not return zero values
+        c_cf = np.array([1, 1, 1, 1])
+        changes_back_factual = np.array([[0.1, 0., 0., 0.], [0., 0.1, 0., 0.], [0., 0., 0.1, 0.], [0., 0., 0., 0.1]])
+        feat_distances = np.array([1, 0.8, 0, 0.2])
+        changes_back_original_idxs = [0, 1, 2, 3]
+        mp1c = MagicMock()
+        mp1c.return_value = np.array([0.7, 0.7, 0.7, 0.5])
+        c_cf_c = 0.6
+
+        change_factor_feat = _calculate_change_factor(c_cf, changes_back_factual, feat_distances,
+                                                      changes_back_original_idxs,  mp1c, c_cf_c)
+
+        self.assertListEqual([-0.1, round(-0.1/0.8, 3), 0, 0.02], list([round(n, 3) for n in change_factor_feat]))
         self.assertIsInstance(change_factor_feat, np.ndarray)
 
     def test__generate_change_vectors_all_num_no_tabu(self):
