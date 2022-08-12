@@ -43,13 +43,12 @@ def _calculate_change_factor(c_cf, changes_back_factual, feat_distances, changes
     change_factor_feat = []
     for f_pc, f_d in zip(prediction_dif, feat_distances[changes_back_original_idxs]):
         if f_pc >= 0:
-            change_factor_feat.append(f_pc*f_d)
-        else:
-            # Avoid division by zero
             if f_d == 0:
                 change_factor_feat.append(0)
             else:
                 change_factor_feat.append(f_pc/f_d)
+        else:
+            change_factor_feat.append(f_pc*f_d)
 
     return np.array(change_factor_feat)
 
