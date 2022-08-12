@@ -49,14 +49,14 @@ def experiment_parameters(data_type, cf_strategy, n_sample):
     # Set seed for random number generator
     random.seed(42)
 
-    experiment_parameters_copy = copy.deepcopy(experiment_parameters)
-
     if data_type == 'tabular':
         experiment_parameters_copy = copy.deepcopy(TABULAR_EXPERIMENTS)
-    if data_type == 'image':
+    elif data_type == 'image':
         experiment_parameters_copy = copy.deepcopy(IMAGE_EXPERIMENTS)
-    if data_type == 'text':
+    elif data_type == 'text':
         experiment_parameters_copy = copy.deepcopy(TEXT_EXPERIMENTS)
+    else:
+        raise ValueError('data_type must be either tabular, image or text')
 
     if cf_strategy == 'greedy':
         del experiment_parameters_copy['threshold_changes']
