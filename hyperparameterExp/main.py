@@ -11,8 +11,6 @@ tf.debugging.experimental.disable_dump_debug_info()
 # Append previous directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import signal
-
 import numpy as np
 import pandas as pd
 
@@ -23,6 +21,8 @@ from hyperparameterExp.utils.experiment_parameters_generator import experiment_p
 from hyperparameterExp.utils.experiment_model_data_generator import DataModelGenerator
 
 from cfnow.cf_finder import find_tabular, find_text, find_image
+
+global initial_exp_time
 
 # Get current script directory
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -108,25 +108,16 @@ def l1_distance(a, b):
 
 
 def make_experiment(factual, model, cf_strategy, parameters, feat_types=None):
-    def handler(signum, frame):
-        raise TimeoutError
+
 
     if VERBOSE:
         print(f'{DATA_TYPE} - {cf_strategy}\nParameters:\n')
         print(pd.Series(parameters))
 
-    # set the timeout handler
-    signal.signal(signal.SIGALRM, handler)
-
-    signal.alarm(300)
-    try:
-        if DATA_TYPE == 'tabular':
-            parameters['feat_types'] = feat_types
-        cf_out = cfnow_function(factual, model, cf_strategy=cf_strategy, **parameters)
-    except:
-        cf_out = None
-    finally:
-        signal.alarm(0)
+    feat_types_param = {}
+    if DATA_TYPE == 'tabular':
+        feat_types_param['feat_types'] = feat_types
+    cf_out = cfnow_function(factual, model, cf_strategy=cf_strategy, **parameters, **feat_types_param)
 
     factual_prob = None
     cf_prob = None
@@ -268,9 +259,9 @@ def run_exp_process():
 def print_progress(exp_time):
 
     cf_times.append(exp_time)
-    total_time = round(sum(cf_times) / 60, 4)
-    total_experiments_corrected = total_experiments - skipped_experiments
-    remaining_time = round(sum(cf_times) / 60 * total_experiments_corrected / (len(cf_times)) - total_time, 4)
+    total_time = round((time.time() - initial_exp_time) / 60, 4)
+    remaining_experiments = total_experiments - len(cf_times) - skipped_experiments
+    remaining_time = round(sum(cf_times)/sum(cf_times)*remaining_experiments/NUM_PROCESS, 4)
 
     print(f'\r({DATA_TYPE}) Total time: {total_time} min | '
           f'Estimated Remaining: '
@@ -313,7 +304,7 @@ def run_experiment_with_parameters(
     # Append pandas dataframe to a pickle file
     g_exp_result_pd.to_pickle(
         f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}/'
-        f'greedy_{data_exp_id}_{PARTITION_ID}_{experiment_id}.pkl')
+        f'{cf_strategy}_{data_exp_id}_{PARTITION_ID}_{experiment_id}.pkl')
 
     print_progress(exp_time)
 
@@ -328,9 +319,9 @@ def exp_thread_run(exp):
 
     run_experiment_with_parameters(experiment_id, data_exp_id, data_model, cf_strategy, exp_params)
 
-
 # Run the experiments in parallel
 with ThreadPoolExecutor(max_workers=NUM_PROCESS) as executor:
+    initial_exp_time = time.time()
     for exp in experiments:
         executor.submit(exp_thread_run, exp)
         
