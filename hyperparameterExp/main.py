@@ -1,6 +1,10 @@
 import os
 import sys
 import time
+
+from concurrent.futures import ThreadPoolExecutor
+from typing_extensions import Literal
+
 import tensorflow as tf
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '5'
 tf.debugging.experimental.disable_dump_debug_info()
@@ -31,7 +35,7 @@ NUM_PARTITIONS = int(os.environ.get('NUM_PARTITIONS'))
 PARTITION_ID = int(os.environ.get('PARTITION_ID'))
 NUM_SAMPLE_PARAMETERS = int(os.environ.get('NUM_SAMPLE_PARAMETERS'))
 START_ID = int(os.environ.get('START_ID')) if os.environ.get('START_ID') else 0
-NUM_PROCESS = int(os.environ.get('START_ID')) if os.environ.get('START_ID') else 1
+NUM_PROCESS = int(os.environ.get('NUM_PROCESS')) if os.environ.get('NUM_PROCESS') else 1
 
 # Download data files
 download_datasets()
@@ -103,7 +107,7 @@ def l1_distance(a, b):
     return np.sum(np.abs(a - b))
 
 
-def make_experiment(factual, model, cf_strategy, parameters):
+def make_experiment(factual, model, cf_strategy, parameters, feat_types=None):
     def handler(signum, frame):
         raise TimeoutError
 
@@ -116,6 +120,8 @@ def make_experiment(factual, model, cf_strategy, parameters):
 
     signal.alarm(300)
     try:
+        if DATA_TYPE == 'tabular':
+            parameters['feat_types'] = feat_types
         cf_out = cfnow_function(factual, model, cf_strategy=cf_strategy, **parameters)
     except:
         cf_out = None
@@ -194,9 +200,7 @@ def make_experiment(factual, model, cf_strategy, parameters):
     return result_out
 
 
-# Outer loop: for each data and model
 dmg = DataModelGenerator(data_type=DATA_TYPE)
-
 # Calculate total number of experiments
 # Number of greedy experiments per data point
 number_greedy_exp = len(combination_param_greedy_partition)
@@ -205,10 +209,61 @@ number_random_exp = len(combination_param_random_partition)
 # Number of data points to be tested
 number_data_exp = len(dmg.experiment_idx)
 total_experiments = (number_greedy_exp + number_random_exp) * number_data_exp
-cf_times = []
+
 skipped_experiments = 0
 
-experiment_id = 0
+# Get the parameters
+
+cf_times = []
+
+
+class ExperimentIterator:
+
+    len_g_param = len(combination_param_greedy_partition)
+    len_r_param = len(combination_param_random_partition)
+
+    def __init__(self):
+        # Define the initial state of the iterator
+        self.exp_idx = 0
+        self.param_idx = 0
+        self.params = combination_param_greedy_partition[self.param_idx], 0, 'greedy'
+        self.data_model = dmg.next()
+        for _ in range(START_ID):
+            self.__next__()
+
+    def _next_params(self):
+        self.param_idx += 1
+        self.exp_idx += 1
+        if self.param_idx < self.len_g_param:
+            data_idx = self.param_idx
+            return combination_param_greedy_partition[data_idx], data_idx,  'greedy'
+        elif self.len_g_param <= self.param_idx < self.len_g_param + self.len_r_param:
+            data_idx = self.param_idx - self.len_g_param
+            return combination_param_greedy_partition[data_idx], data_idx, 'random'
+        else:
+            # We only change the model when we ran all data points
+            self.data_model = dmg.next()
+            self.param_idx = 0
+            data_idx = self.param_idx
+            return combination_param_greedy_partition[data_idx], data_idx, 'greedy'
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.data_model is None:
+            raise StopIteration
+
+        self.return_data = self.exp_idx, self.params, self.data_model
+
+        self.params = self._next_params()
+
+        return self.return_data
+
+
+def run_exp_process():
+    dmg.next()
+
 
 def print_progress(exp_time):
 
@@ -223,74 +278,59 @@ def print_progress(exp_time):
           flush=True, end='')
 
 
-while True:
-    g_data_model = dmg.next()
-    if g_data_model is None:
-        break
+def run_experiment_with_parameters(
+        experiment_id: int,
+        data_exp_id: int,
+        data_model: DataModelGenerator,
+        cf_strategy: Literal['greedy', 'random'],
+        exp_params: dict):
+    """
+    Run an experiment with the given parameters
+    :param experiment_id: The global experiment id
+    :param data_exp_id: The specific data id of the experiment
+    :param data_model: The data/model from DMG
+    :param cf_strategy: CF strategy to use
+    :param exp_params: Parameters of the experiment
+    :return:
+    """
 
-    factual = g_data_model[0]
-    model = g_data_model[1]
-    feat_types = g_data_model[4]
+    factual = data_model[0]
+    model = data_model[1]
+    feat_types = data_model[4]
 
     if not os.path.exists(f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}'):
         os.makedirs(f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}')
 
     # Inner loop: for each combination of parameters
 
-    # Greedy Experiments
-    partition_g_exp_id = 0
-    for g_params in combination_param_greedy_partition:
+    exp_start_time = time.time()
+    g_exp_result = make_experiment(factual, model, cf_strategy, exp_params, feat_types)
+    exp_time = time.time() - exp_start_time
 
-        if experiment_id < START_ID:
-            skipped_experiments += 1
-            partition_g_exp_id += 1
-            experiment_id += 1
-            continue
+    g_exp_result['experiment_id'] = data_exp_id
 
-        g_time_start = time.time()
-        g_exp_result = make_experiment(factual, model, 'greedy', g_params)
-        g_time_total = time.time() - g_time_start
+    g_exp_result_pd = pd.DataFrame([g_exp_result])
+    # Append pandas dataframe to a pickle file
+    g_exp_result_pd.to_pickle(
+        f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}/'
+        f'greedy_{data_exp_id}_{PARTITION_ID}_{experiment_id}.pkl')
 
-        g_exp_result['experiment_id'] = partition_g_exp_id
+    print_progress(exp_time)
 
-        g_exp_result_pd = pd.DataFrame([g_exp_result])
-        # Append pandas dataframe to a pickle file
-        g_exp_result_pd.to_pickle(
-            f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}/'
-            f'greedy_{partition_g_exp_id}_{PARTITION_ID}_{experiment_id}.pkl')
+experiments = iter(ExperimentIterator())
 
-        if VERBOSE:
-            print(f'Partition {partition_g_exp_id + 1}/{len(combination_param_greedy_partition)} done')
-        partition_g_exp_id += 1
-        experiment_id += 1
+def exp_thread_run(exp):
+    experiment_id = exp[0]
+    data_exp_id = exp[1][1]
+    data_model = exp[2]
+    cf_strategy = exp[1][2]
+    exp_params = exp[1][0]
 
-        print_progress(g_time_total)
+    run_experiment_with_parameters(experiment_id, data_exp_id, data_model, cf_strategy, exp_params)
 
-    # Random Experiments
-    partition_exp_r_id = 0
-    for r_params in combination_param_random_partition:
 
-        if experiment_id < START_ID:
-            skipped_experiments += 1
-            partition_exp_r_id += 1
-            experiment_id += 1
-            continue
-
-        r_time_start = time.time()
-        r_exp_result = make_experiment(factual, model, 'random', r_params)
-        r_time_total = time.time() - r_time_start
-
-        r_exp_result['experiment_id'] = partition_exp_r_id
-
-        r_exp_result_pd = pd.DataFrame([r_exp_result])
-        # Append pandas dataframe to a pickle file
-        r_exp_result_pd.to_pickle(
-            f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}/'
-            f'random_{partition_exp_r_id}_{PARTITION_ID}_{experiment_id}.pkl')
-
-        if VERBOSE:
-            print(f'Partition {partition_exp_r_id + 1}/{len(combination_param_random_partition)} done')
-        partition_exp_r_id += 1
-        experiment_id += 1
-
-        print_progress(r_time_total)
+# Run the experiments in parallel
+with ThreadPoolExecutor(max_workers=NUM_PROCESS) as executor:
+    for exp in experiments:
+        executor.submit(exp_thread_run, exp)
+        
