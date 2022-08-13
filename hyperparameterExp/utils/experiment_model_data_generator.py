@@ -176,9 +176,10 @@ def load_tf_model(model_path: str, memory_limit: int, compile_model: bool = True
     :return: the model
     """
 
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    tf.config.experimental.set_virtual_device_configuration(gpus[0], [
-        tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)])
+    if memory_limit > 0:
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        tf.config.experimental.set_virtual_device_configuration(gpus[0], [
+            tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)])
 
     model = tf.keras.models.load_model(model_path, compile=compile_model)
 
@@ -195,9 +196,10 @@ def load_mobilenetv2_model(memory_limit: int) -> tf.keras.Model:
     # Import model
     classifier_url ="https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/2"
 
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    tf.config.experimental.set_virtual_device_configuration(gpus[0], [
-        tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)])
+    if memory_limit > 0:
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        tf.config.experimental.set_virtual_device_configuration(gpus[0], [
+            tf.config.experimental.VirtualDeviceConfiguration(memory_limit=memory_limit)])
 
     # Configure classifier
     model = tf.keras.Sequential([
@@ -220,7 +222,7 @@ class DataModelGenerator:
     of the row to be used. [path_data, path_model, idx_row]
     """
 
-    def __init__(self, data_type: str, gpu_memory_fraction: int = 4000,  idx_list: list = None):
+    def __init__(self, data_type: str, gpu_memory_fraction: int = -1,  idx_list: list = None):
         """
         Initializes the class
         :param data_type: The data type to be used, can be 'tabular' or 'image' or 'text'
