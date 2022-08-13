@@ -31,6 +31,7 @@ NUM_PARTITIONS = int(os.environ.get('NUM_PARTITIONS'))
 PARTITION_ID = int(os.environ.get('PARTITION_ID'))
 NUM_SAMPLE_PARAMETERS = int(os.environ.get('NUM_SAMPLE_PARAMETERS'))
 START_ID = int(os.environ.get('START_ID')) if os.environ.get('START_ID') else 0
+NUM_PROCESS = int(os.environ.get('START_ID')) if os.environ.get('START_ID') else 1
 
 # Download data files
 download_datasets()
@@ -208,6 +209,20 @@ cf_times = []
 skipped_experiments = 0
 
 experiment_id = 0
+
+def print_progress(exp_time):
+
+    cf_times.append(exp_time)
+    total_time = round(sum(cf_times) / 60, 4)
+    total_experiments_corrected = total_experiments - skipped_experiments
+    remaining_time = round(sum(cf_times) / 60 * total_experiments_corrected / (len(cf_times)) - total_time, 4)
+
+    print(f'\r({DATA_TYPE}) Total time: {total_time} min | '
+          f'Estimated Remaining: '
+          f'{remaining_time} min',
+          flush=True, end='')
+
+
 while True:
     g_data_model = dmg.next()
     if g_data_model is None:
@@ -249,14 +264,7 @@ while True:
         partition_g_exp_id += 1
         experiment_id += 1
 
-        cf_times.append(g_time_total)
-        total_time = round(sum(cf_times)/60, 4)
-        total_experiments_corrected = total_experiments - skipped_experiments
-        remaining_time = round(sum(cf_times)/60*total_experiments_corrected/len(cf_times) - total_time, 4)
-        print(f'\r({DATA_TYPE}) Total time: {total_time} min | '
-              f'Estimated Remaining: '
-              f'{remaining_time} min',
-              flush=True, end='')
+        print_progress(g_time_total)
 
     # Random Experiments
     partition_exp_r_id = 0
@@ -285,12 +293,4 @@ while True:
         partition_exp_r_id += 1
         experiment_id += 1
 
-        cf_times.append(r_time_total)
-        total_time = round(sum(cf_times)/60, 4)
-        total_experiments_corrected = total_experiments - skipped_experiments
-        remaining_time = round(sum(cf_times)/60*total_experiments_corrected/(len(cf_times)) - total_time, 4)
-
-        print(f'\r({DATA_TYPE}) Total time: {total_time} min | '
-              f'Estimated Remaining: '
-              f'{remaining_time} min',
-              flush=True, end='')
+        print_progress(r_time_total)
