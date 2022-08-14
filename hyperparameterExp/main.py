@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import asyncio
 
 from concurrent.futures import ThreadPoolExecutor
 from typing_extensions import Literal
@@ -256,16 +257,44 @@ def run_exp_process():
     dmg.next()
 
 
+# Function that converts minutes to days, hours, minutes, seconds
+def convert_time(time):
+    days = time // (24 * 60 * 60)
+    time -= days * 24 * 60 * 60
+    hours = time // (60 * 60)
+    time -= hours * 60 * 60
+    minutes = time // 60
+    time -= minutes * 60
+    seconds = time
+    return int(days), int(hours), int(minutes), seconds
+
+
+# Function that shows days if days > 0, hours if days > 0 and hours > 0, minutes if days > 0 and hours > 0 and
+# minutes > 0, seconds otherwise
+def show_time(time):
+    days, hours, minutes, seconds = convert_time(time)
+    if days > 0:
+        return '{} days, {} hours, {} minutes, {:0.1f} seconds'.format(days, hours, minutes, seconds)
+    elif hours > 0:
+        return '{} hours, {} minutes, {:0.1f} seconds'.format(hours, minutes, seconds)
+    elif minutes > 0:
+        return '{} minutes, {:0.1f} seconds'.format(minutes, seconds)
+    else:
+        return '{:0.1f} seconds'.format(seconds)
+
 def print_progress(exp_time):
 
     cf_times.append(exp_time)
-    total_time = round((time.time() - initial_exp_time) / 60, 4)
-    remaining_experiments = total_experiments - len(cf_times) - skipped_experiments
-    remaining_time = round(sum(cf_times)/sum(cf_times)*remaining_experiments/NUM_PROCESS, 4)
+    total_time = round((time.time() - initial_exp_time), 4)
+    total_experiments_to_run = total_experiments - skipped_experiments
+    experiments_done = len(cf_times)
+    time_per_experiment = round(total_time / len(cf_times), 4)
+    remaining_time = round((total_experiments - len(cf_times) - skipped_experiments) * time_per_experiment, 4)
 
-    print(f'\r({DATA_TYPE}) Total time: {total_time} min | '
+    print(f'\r({DATA_TYPE}) Total time: {show_time(total_time)} | '
+          f'Experiments done: {experiments_done}/{total_experiments_to_run} | '
           f'Estimated Remaining: '
-          f'{remaining_time} min',
+          f'{show_time(remaining_time)}',
           flush=True, end='')
 
 
@@ -319,9 +348,9 @@ def exp_thread_run(exp):
 
     run_experiment_with_parameters(experiment_id, data_exp_id, data_model, cf_strategy, exp_params)
 
+
 # Run the experiments in parallel
 with ThreadPoolExecutor(max_workers=NUM_PROCESS) as executor:
     initial_exp_time = time.time()
     for exp in experiments:
         executor.submit(exp_thread_run, exp)
-        
