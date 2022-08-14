@@ -272,7 +272,7 @@ def print_progress(exp_time):
 def run_experiment_with_parameters(
         experiment_id: int,
         data_exp_id: int,
-        data_model: DataModelGenerator,
+        data_model: [pd.Series, object, dict],
         cf_strategy: Literal['greedy', 'random'],
         exp_params: dict):
     """
