@@ -273,7 +273,7 @@ class DataModelGenerator:
             data_path, model_path, feat_types, idx_row = self.experiment_idx[self.idx_list[self.current_idx]]
             self.current_idx += 1
             if self.data_type == 'tabular':
-                row = pd.read_csv(data_path, nrows=1, skiprows=idx_row).iloc[0, :-1]
+                row = pd.read_csv(data_path, nrows=2 + idx_row, header=0).iloc[idx_row, :-1]
             elif self.data_type == 'image':
                 # Make adjustments for image work in the classifier
                 img = Image.open(f'{data_path}')
