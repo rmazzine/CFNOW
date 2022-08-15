@@ -202,7 +202,7 @@ number_random_exp = len(combination_param_random_partition)
 number_data_exp = len(dmg.experiment_idx)
 total_experiments = (number_greedy_exp + number_random_exp) * number_data_exp
 
-skipped_experiments = 0
+skipped_experiments = START_ID
 
 # Get the parameters
 
