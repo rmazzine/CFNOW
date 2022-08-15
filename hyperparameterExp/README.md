@@ -18,6 +18,7 @@ export NUM_PARTITIONS=5 # This divides the experiment into n (in this case 5) pa
 export PARTITION_ID=1 # This is the id of the partition.
 export NUM_SAMPLE_PARAMETERS=100 # Number of parameters to be randomly sampled (for random and greedy). 
 export START_ID=0 # (optional) Starting ID to be used for the experiments.
+export NUM_PROCESS=16 # (optional) Number of processes to be used.
 ```
 2 - Run the following command (with terminal in the directory `hyperparameterExp`)
 ```shell
@@ -56,7 +57,7 @@ dk run -t --gpus all -e DATA_TYPE=tabular -e NUM_PARTITIONS=1 -e PARTITION_ID=1 
 The experiments reported were generated with the following command:
 ```shell
 docker build -t hyperparameterexp .
-docker run -t --gpus all -e DATA_TYPE=tabular -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=500 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results hyperparameterexp;
-docker run -t --gpus all -e DATA_TYPE=image -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=250 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results hyperparameterexp;
-docker run -t --gpus all -e DATA_TYPE=text -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=250 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results hyperparameterexp
+docker run -t --gpus all -e DATA_TYPE=tabular -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=100 -e NUM_PROCESS=16 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results hyperparameterexp;
+docker run -t --gpus all -e DATA_TYPE=image -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=100 -e NUM_PROCESS=16 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results hyperparameterexp;
+docker run -t --gpus all -e DATA_TYPE=text -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=100 -e NUM_PROCESS=16 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results hyperparameterexp
 ```
