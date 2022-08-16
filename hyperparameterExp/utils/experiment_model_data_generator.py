@@ -222,7 +222,7 @@ class DataModelGenerator:
     of the row to be used. [path_data, path_model, idx_row]
     """
 
-    def __init__(self, data_type: str, gpu_memory_fraction: int = -1,  idx_list: list = None):
+    def __init__(self, data_type: str, gpu_memory: int = -1,  idx_list: list = None):
         """
         Initializes the class
         :param data_type: The data type to be used, can be 'tabular' or 'image' or 'text'
@@ -231,7 +231,7 @@ class DataModelGenerator:
         self.current_idx = 0
 
         self.data_type = data_type
-        self.gpu_memory_fraction = gpu_memory_fraction
+        self.gpu_memory = gpu_memory
         if data_type == 'tabular':
             self.experiment_idx = tabular_data_model_paths()
         elif data_type == 'image':
@@ -253,11 +253,11 @@ class DataModelGenerator:
         """
         if model_path != self.current_model_path:
             if self.data_type == 'tabular':
-                self.model = load_tf_model(model_path, self.gpu_memory_fraction, compile_model=False)
+                self.model = load_tf_model(model_path, self.gpu_memory, compile_model=False)
             elif self.data_type == 'image':
-                self.model = load_mobilenetv2_model(self.gpu_memory_fraction)
+                self.model = load_mobilenetv2_model(self.gpu_memory)
             elif self.data_type == 'text':
-                self.model = textual_classifier(load_tf_model(model_path, self.gpu_memory_fraction))
+                self.model = textual_classifier(load_tf_model(model_path, self.gpu_memory))
             else:
                 raise ValueError(f'Data type {self.data_type} not supported')
             self.current_model_path = model_path

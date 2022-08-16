@@ -37,6 +37,7 @@ PARTITION_ID = int(os.environ.get('PARTITION_ID'))
 NUM_SAMPLE_PARAMETERS = int(os.environ.get('NUM_SAMPLE_PARAMETERS'))
 START_ID = int(os.environ.get('START_ID')) if os.environ.get('START_ID') else 0
 NUM_PROCESS = int(os.environ.get('NUM_PROCESS')) if os.environ.get('NUM_PROCESS') else 1
+GPU_MEMORY = int(os.environ.get('GPU_MEMORY')) if os.environ.get('GPU_MEMORY') else -1
 
 # Download data files
 download_datasets()
@@ -192,7 +193,7 @@ def make_experiment(factual, model, cf_strategy, parameters, feat_types=None):
     return result_out
 
 
-dmg = DataModelGenerator(data_type=DATA_TYPE)
+dmg = DataModelGenerator(data_type=DATA_TYPE, gpu_memory=GPU_MEMORY)
 # Calculate total number of experiments
 # Number of greedy experiments per data point
 number_greedy_exp = len(combination_param_greedy_partition)
