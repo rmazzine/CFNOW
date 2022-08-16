@@ -34,6 +34,9 @@ VERBOSE = False
 DATA_TYPE = os.environ.get('DATA_TYPE')
 NUM_PARTITIONS = int(os.environ.get('NUM_PARTITIONS'))
 PARTITION_ID = int(os.environ.get('PARTITION_ID'))
+if PARTITION_ID < 1 or PARTITION_ID > NUM_PARTITIONS:
+    print(f'Partition ID {PARTITION_ID} is not valid. Valid values are between 1 and {NUM_PARTITIONS}')
+    sys.exit(1)
 NUM_SAMPLE_PARAMETERS = int(os.environ.get('NUM_SAMPLE_PARAMETERS'))
 START_ID = int(os.environ.get('START_ID')) if os.environ.get('START_ID') else 0
 NUM_PROCESS = int(os.environ.get('NUM_PROCESS')) if os.environ.get('NUM_PROCESS') else 1
@@ -66,15 +69,31 @@ total_combination_param_random, combination_param_random = \
 percentage_possible_combinations = round(
     (NUM_SAMPLE_PARAMETERS*2.0/(total_combination_param_greedy + total_combination_param_random)) * 100, 2)
 
+dmg = DataModelGenerator(data_type=DATA_TYPE, gpu_memory=GPU_MEMORY)
+# Calculate total number of experiments
+# Number of greedy experiments per data point
+number_greedy_exp = len(combination_param_greedy)
+# Number of random experiments per data point
+number_random_exp = len(combination_param_random)
+# Number of data points to be tested
+number_data_exp = len(dmg.experiment_idx)
+total_experiments = (number_greedy_exp + number_random_exp) * number_data_exp
+
 print(f'The sample represents '
       f'{percentage_possible_combinations}'
       f'% of the total combinations')
 
-partition_greedy_idx = np.array_split(range(len(combination_param_greedy)), NUM_PARTITIONS)[PARTITION_ID - 1]
-partition_random_idx = np.array_split(range(len(combination_param_random)), NUM_PARTITIONS)[PARTITION_ID - 1]
+size_partition = (total_experiments // NUM_PARTITIONS)
+skip_partition = size_partition * (PARTITION_ID - 1)
 
-combination_param_greedy_partition = [combination_param_greedy[i] for i in partition_greedy_idx]
-combination_param_random_partition = [combination_param_random[i] for i in partition_random_idx]
+start_partition_id = skip_partition
+end_partition_id = skip_partition + size_partition
+
+skipped_experiments = START_ID - skip_partition
+
+# If skipped experiments is larger than the 0, then skip the experiments
+if skipped_experiments > 0:
+    start_partition_id += skipped_experiments
 
 
 def print_results(factual_prob,
@@ -192,36 +211,22 @@ def make_experiment(factual, model, cf_strategy, parameters, feat_types=None):
 
     return result_out
 
-
-dmg = DataModelGenerator(data_type=DATA_TYPE, gpu_memory=GPU_MEMORY)
-# Calculate total number of experiments
-# Number of greedy experiments per data point
-number_greedy_exp = len(combination_param_greedy_partition)
-# Number of random experiments per data point
-number_random_exp = len(combination_param_random_partition)
-# Number of data points to be tested
-number_data_exp = len(dmg.experiment_idx)
-total_experiments = (number_greedy_exp + number_random_exp) * number_data_exp
-
-skipped_experiments = START_ID
-
 # Get the parameters
-
 cf_times = []
 
 
 class ExperimentIterator:
 
-    len_g_param = len(combination_param_greedy_partition)
-    len_r_param = len(combination_param_random_partition)
+    len_g_param = len(combination_param_greedy)
+    len_r_param = len(combination_param_random)
 
     def __init__(self):
         # Define the initial state of the iterator
         self.exp_idx = 0
         self.param_idx = 0
-        self.params = combination_param_greedy_partition[self.param_idx], 0, 'greedy'
+        self.params = combination_param_greedy[self.param_idx], 0, 'greedy'
         self.data_model = dmg.next()
-        for _ in range(START_ID):
+        for _ in range(start_partition_id):
             self.__next__()
 
     def _next_params(self):
@@ -229,22 +234,22 @@ class ExperimentIterator:
         self.exp_idx += 1
         if self.param_idx < self.len_g_param:
             data_idx = self.param_idx
-            return combination_param_greedy_partition[data_idx], data_idx,  'greedy'
+            return combination_param_greedy[data_idx], data_idx,  'greedy'
         elif self.len_g_param <= self.param_idx < self.len_g_param + self.len_r_param:
             data_idx = self.param_idx - self.len_g_param
-            return combination_param_greedy_partition[data_idx], data_idx, 'random'
+            return combination_param_random[data_idx], data_idx, 'random'
         else:
             # We only change the model when we ran all data points
             self.data_model = dmg.next()
             self.param_idx = 0
             data_idx = self.param_idx
-            return combination_param_greedy_partition[data_idx], data_idx, 'greedy'
+            return combination_param_greedy[data_idx], data_idx, 'greedy'
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        if self.data_model is None:
+        if self.data_model is None or self.exp_idx >= end_partition_id:
             raise StopIteration
 
         self.return_data = self.exp_idx, self.params, self.data_model
@@ -287,10 +292,10 @@ def print_progress(exp_time):
 
     cf_times.append(exp_time)
     total_time = round((time.time() - initial_exp_time), 4)
-    total_experiments_to_run = total_experiments - skipped_experiments
+    total_experiments_to_run = end_partition_id - start_partition_id
     experiments_done = len(cf_times)
     time_per_experiment = round(total_time / len(cf_times), 4)
-    remaining_time = round((total_experiments - len(cf_times) - skipped_experiments) * time_per_experiment, 4)
+    remaining_time = round((total_experiments_to_run - len(cf_times)) * time_per_experiment, 4)
 
     print(f'\r({DATA_TYPE}) Total time: {show_time(total_time)} | '
           f'Experiments done: {experiments_done}/{total_experiments_to_run} | '
@@ -319,8 +324,8 @@ def run_experiment_with_parameters(
     model = data_model[1]
     feat_types = data_model[4]
 
-    if not os.path.exists(f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}'):
-        os.makedirs(f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}')
+    if not os.path.exists(f'{script_dir}/Results/{DATA_TYPE}'):
+        os.makedirs(f'{script_dir}/Results/{DATA_TYPE}')
 
     # Inner loop: for each combination of parameters
 
@@ -328,17 +333,20 @@ def run_experiment_with_parameters(
     g_exp_result = make_experiment(factual, model, cf_strategy, exp_params, feat_types)
     exp_time = time.time() - exp_start_time
 
-    g_exp_result['experiment_id'] = data_exp_id
+    exp_id = str(experiment_id).zfill(len(str(total_experiments)))
+    g_exp_result['experiment_id'] = exp_id
 
     g_exp_result_pd = pd.DataFrame([g_exp_result])
     # Append pandas dataframe to a pickle file
     g_exp_result_pd.to_pickle(
-        f'{script_dir}/Results/{DATA_TYPE}/{PARTITION_ID}/'
-        f'{cf_strategy}_{data_exp_id}_{PARTITION_ID}_{experiment_id}.pkl')
+        f'{script_dir}/Results/{DATA_TYPE}/'
+        f'{exp_id}_{cf_strategy}_{NUM_SAMPLE_PARAMETERS}.pkl')
 
     print_progress(exp_time)
 
+
 experiments = iter(ExperimentIterator())
+
 
 def exp_thread_run(exp):
     experiment_id = exp[0]
