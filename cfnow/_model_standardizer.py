@@ -103,7 +103,7 @@ def _convert_to_numpy(data):
 
 def _adjust_multiclass_nonspecific(factual: np.ndarray, mic):
     # Compare the factual class value to the other highest
-    pred_factual = mic([factual])
+    pred_factual = mic(np.array([factual]) if len(factual.shape) == 1 else factual)
     factual_idx = np.argmax(pred_factual)
 
     def _mimns(cf_candidates):
@@ -126,13 +126,13 @@ def _adjust_multiclass_nonspecific(factual: np.ndarray, mic):
     return _mimns
 
 
-def _adjust_multiclass_second_best(factual, mic):
+def _adjust_multiclass_second_best(factual: np.ndarray, mic):
     # In this function, we get the second-highest scored class and make it as the CF to be found.
     # Then, the score of this target (the originally second-highest scored class) is compared with the other best
     # result.
 
     # Compare the factual class value to the other highest
-    pred_factual = mic([factual])
+    pred_factual = mic(np.array([factual]) if len(factual.shape) == 1 else factual)
     factual_idx = copy.copy(np.argmax(pred_factual))
     pred_factual[0][factual_idx] = -np.inf
     cf_idx = copy.copy(np.argmax(pred_factual))

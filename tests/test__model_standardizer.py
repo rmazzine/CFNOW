@@ -285,11 +285,24 @@ class TestScriptBase(unittest.TestCase):
 
         self.assertIsInstance(a_np, np.ndarray)
 
+    def test__adjust_multiclass_nonspecific_input_shape_test(self):
+        # Test if the input shape conversion works right as data can have shape (n, 1) or (n,)
+        _mic = MagicMock()
+
+        _mic.side_effect = lambda x: np.array([[1., 0., 0., 0., 0.]])
+
+        adjusted_predictor_n_0 = _adjust_multiclass_nonspecific(np.array([0, 0, 0, 0]), _mic)
+
+        adjusted_predictor_n_1 = _adjust_multiclass_nonspecific(np.array([[0, 0, 0, 0]]), _mic)
+
+        self.assertListEqual(_mic.call_args_list[0][0][0].tolist(), _mic.call_args_list[1][0][0].tolist())
+
+
     def test__adjust_multiclass_nonspecific_factual_larger(self):
         # In this case, the first index is the factual and any other index can be a counterfactual
         def _mic(x): return np.array([[1., 0., 0., 0., 0.]]) if x[0] == 0 else np.array([[100., 0., 0., 0., 0.]])
 
-        adjusted_predictor = _adjust_multiclass_nonspecific(0, _mic)
+        adjusted_predictor = _adjust_multiclass_nonspecific(np.array([0]), _mic)
 
         prediction = round(adjusted_predictor(np.array([1]))[0], 2)
 
@@ -299,7 +312,7 @@ class TestScriptBase(unittest.TestCase):
         # In this case, the first index is the factual and any other index can be a counterfactual
         def _mic(x): return np.array([[1., 0., 0., 0., 0.]]) if x[0] == 0 else np.array([[1., 0., 0., 0., 0.]])
 
-        adjusted_predictor = _adjust_multiclass_nonspecific(0, _mic)
+        adjusted_predictor = _adjust_multiclass_nonspecific(np.array([0]), _mic)
 
         prediction = adjusted_predictor(np.array([1]))[0]
 
@@ -309,7 +322,7 @@ class TestScriptBase(unittest.TestCase):
         # In this case, the first index is the factual and any other index can be a counterfactual
         def _mic(x): return np.array([[1., 0., 0., 0., 0.]]) if x[0] == 0 else np.array([[0., 0., 100., 0., 0.]])
 
-        adjusted_predictor = _adjust_multiclass_nonspecific(0, _mic)
+        adjusted_predictor = _adjust_multiclass_nonspecific(np.array([0]), _mic)
 
         prediction = adjusted_predictor(np.array([1]))[0]
 
@@ -319,11 +332,25 @@ class TestScriptBase(unittest.TestCase):
         # In this case, the first index is the factual and any other index can be a counterfactual
         def _mic(x): return np.array([[1., 0., 0., 0., 0.]]) if x[0] == 0 else np.array([[1., 0., 1., 0., 0.]])
 
-        adjusted_predictor = _adjust_multiclass_nonspecific(0, _mic)
+        adjusted_predictor = _adjust_multiclass_nonspecific(np.array([0]), _mic)
 
         prediction = adjusted_predictor(np.array([1]))[0]
 
         self.assertTrue(prediction == 0.5)
+
+
+    def test__adjust_multiclass_second_best_input_shape_test(self):
+        # Test if the input shape conversion works right as data can have shape (n, 1) or (n,)
+        _mic = MagicMock()
+
+        _mic.side_effect = lambda x: np.array([[1., 0., 0., 0., 0.]])
+
+        adjusted_predictor_n_0 = _adjust_multiclass_second_best(np.array([0, 0, 0, 0]), _mic)
+
+        adjusted_predictor_n_1 = _adjust_multiclass_second_best(np.array([[0, 0, 0, 0]]), _mic)
+
+        self.assertListEqual(_mic.call_args_list[0][0][0].tolist(), _mic.call_args_list[1][0][0].tolist())
+
 
     def test__adjust_multiclass_second_best_factual_larger(self):
         # In this case, first index is the factual, but the counterfactual is the second best in the factual score
@@ -331,7 +358,7 @@ class TestScriptBase(unittest.TestCase):
         # (the second best in factual score, therefore, the third index) is the largest number
         def _mic(x): return np.array([[1., 0., 0.5, 0., 0.]]) if x[0] == 0 else np.array([[100., 0., 0.5, 0., 0.]])
 
-        adjusted_predictor = _adjust_multiclass_second_best(0, _mic)
+        adjusted_predictor = _adjust_multiclass_second_best(np.array([0]), _mic)
 
         prediction = round(adjusted_predictor(np.array([1]))[0], 2)
 
@@ -343,7 +370,7 @@ class TestScriptBase(unittest.TestCase):
         # (the second best in factual score, therefore, the third index) is the largest number
         def _mic(x): return np.array([[1., 0., 0.5, 0., 0.]]) if x[0] == 0 else np.array([[1., 0., 0.5, 0., 0.]])
 
-        adjusted_predictor = _adjust_multiclass_second_best(0, _mic)
+        adjusted_predictor = _adjust_multiclass_second_best(np.array([0]), _mic)
 
         prediction = round(adjusted_predictor(np.array([1]))[0], 2)
 
@@ -355,7 +382,7 @@ class TestScriptBase(unittest.TestCase):
         # (the second best in factual score, therefore, the third index) is the largest number
         def _mic(x): return np.array([[1., 0., 0.5, 0., 0.]]) if x[0] == 0 else np.array([[1., 0., 0.5, 0.5, 0.]])
 
-        adjusted_predictor = _adjust_multiclass_second_best(0, _mic)
+        adjusted_predictor = _adjust_multiclass_second_best(np.array([0]), _mic)
 
         prediction = round(adjusted_predictor(np.array([1]))[0], 2)
 
@@ -367,7 +394,7 @@ class TestScriptBase(unittest.TestCase):
         # (the second best in factual score, therefore, the third element) is the largest number
         def _mic(x): return np.array([[1., 0., 0.5, 0., 0.]]) if x[0] == 0 else np.array([[1., 0., 0.5, 100.0, 0.]])
 
-        adjusted_predictor = _adjust_multiclass_second_best(0, _mic)
+        adjusted_predictor = _adjust_multiclass_second_best(np.array([0]), _mic)
 
         prediction = round(adjusted_predictor(np.array([1]))[0], 2)
 
@@ -379,7 +406,7 @@ class TestScriptBase(unittest.TestCase):
         # (the second best in factual score, therefore, the third element) is the largest number
         def _mic(x): return np.array([[1., 0., 0.5, 0., 0.]]) if x[0] == 0 else np.array([[1., 0., 100.0, 1.0, 0.]])
 
-        adjusted_predictor = _adjust_multiclass_second_best(0, _mic)
+        adjusted_predictor = _adjust_multiclass_second_best(np.array([0]), _mic)
 
         prediction = round(adjusted_predictor(np.array([1]))[0], 2)
 
@@ -391,7 +418,7 @@ class TestScriptBase(unittest.TestCase):
         # (the second best in factual score, therefore, the third element) is the largest number
         def _mic(x): return np.array([[1., 0., 0.5, 0., 0.]]) if x[0] == 0 else np.array([[1., 0., 1.0, 1.0, 0.]])
 
-        adjusted_predictor = _adjust_multiclass_second_best(0, _mic)
+        adjusted_predictor = _adjust_multiclass_second_best(np.array([0]), _mic)
 
         prediction = round(adjusted_predictor(np.array([1]))[0], 2)
 
@@ -403,7 +430,7 @@ class TestScriptBase(unittest.TestCase):
         # (the second best in factual score, therefore, the third element) is the largest number
         def _mic(x): return np.array([[1., 0., 0.5, 0., 0.]]) if x[0] == 0 else np.array([[1., 0., 1.0, 0.0, 0.]])
 
-        adjusted_predictor = _adjust_multiclass_second_best(0, _mic)
+        adjusted_predictor = _adjust_multiclass_second_best(np.array([0]), _mic)
 
         prediction = round(adjusted_predictor(np.array([1]))[0], 2)
 
@@ -415,7 +442,7 @@ class TestScriptBase(unittest.TestCase):
         # (the second best in factual score, therefore, the third element) is the largest number
         def _mic(x): return np.array([[1., 0., 0.5, 0., 0.]]) if x[0] == 0 else np.array([[0., 0., 1.0, 1.0, 0.]])
 
-        adjusted_predictor = _adjust_multiclass_second_best(0, _mic)
+        adjusted_predictor = _adjust_multiclass_second_best(np.array([0]), _mic)
 
         prediction = round(adjusted_predictor(np.array([1]))[0], 2)
 
