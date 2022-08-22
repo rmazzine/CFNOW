@@ -314,12 +314,13 @@ def _random_generator_stop_conditions(cf_try_prob, iterations, ft_time, it_max, 
     return True
 
 
-def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-                      increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit,
-                      threshold_changes, verbose):
+def _random_generator(finder_strategy, cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
+                      ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time,
+                      ft_time_limit, threshold_changes, verbose):
     """
     This algorithm takes a random strategy to find a minimal set of changes which change the classification prediction
 
+    :param finder_strategy: The strategy adopted by the CF generator
     :param cf_data_type: Type of data
     :param factual: The factual point
     :param mp1c: The predictor function wrapped in a predictable way
@@ -398,17 +399,22 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
             # Identify which index had the best performance towards objective, it will take the first best
             best_arg = np.argmax(prob_cf_candidates)
 
-            # TODO: By sequentially modifying the outcome with the best argument, we introduce a bias for the
-            #  CF search, then, a non-biased methodology would simply not change by the best, but just go to
-            #  the next step with more modifications.
-            # Update CF try
-            cf_try = cf_try + random_changes[best_arg]
+            if finder_strategy == 'sequential':
+                # The random sequential strategy updates the CF try with the best candidate
+                # Update CF try
+                cf_try = cf_try + random_changes[best_arg]
+                # Update the score
+                cf_try_prob = mp1c(np.array([cf_try]))[0]
+            elif finder_strategy is None:
+                # Verify best score
+                cf_try_best_prob = mp1c(np.array([cf_try + random_changes[best_arg]]))[0]
+                # If the best score is a CF, update the CF try
+                if cf_try_best_prob >= 0.5:
+                    cf_try = cf_try + random_changes[best_arg]
+                    cf_try_prob = cf_try_best_prob
 
             # Calculate how much the score got better
             score_increase = [-cf_try_prob]
-
-            # Update the score
-            cf_try_prob = mp1c(np.array([cf_try]))[0]
 
             # Basic verbose report
             if verbose:
@@ -495,11 +501,13 @@ def _generate_greedy_changes(factual, cf_try, tabu_list, changes_cat_bin, change
 
 
 def _greedy_generator(
-        cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes, increase_threshold,
-        tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes, verbose):
+        finder_strategy, cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
+        increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit,
+        threshold_changes, verbose):
     """
         This algorithm makes sequential changes which will better increase the score to find a CF
 
+        :param finder_strategy: The strategy adopted by the CF generator
         :param cf_data_type: NOT USED FOR GREEDY STRATEGY
         :param factual: The factual point
         :param mp1c: The predictor function wrapped in a predictable way

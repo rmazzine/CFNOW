@@ -227,8 +227,13 @@ def find_tabular(
     cf_finder = None
     if cf_strategy == 'random':
         cf_finder = _random_generator
+        finder_strategy = None
+    elif cf_strategy == 'random-sequential':
+        cf_finder = _random_generator
+        finder_strategy = 'sequential'
     elif cf_strategy == 'greedy':
         cf_finder = _greedy_generator
+        finder_strategy = None
     if cf_finder is None:
         raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
 
@@ -255,7 +260,8 @@ def find_tabular(
     # Generate OHE parameters if it has OHE variables
     ohe_list, ohe_indexes = _get_ohe_params(factual, has_ohe)
     # Generate CF using a CF finder
-    cf_out = cf_finder(cf_data_type=cf_data_type,
+    cf_out = cf_finder(finder_strategy=finder_strategy,
+                       cf_data_type=cf_data_type,
                        factual=factual,
                        mp1c=mp1c,
                        feat_types=feat_types,
@@ -286,7 +292,8 @@ def find_tabular(
             time_cf_not_optimized=time_cf_not_optimized.total_seconds())
 
     # Fine tune the counterfactual
-    cf_out_ft = _fine_tuning(cf_data_type=cf_data_type,
+    cf_out_ft = _fine_tuning(finder_strategy=finder_strategy,
+                             cf_data_type=cf_data_type,
                              factual=factual,
                              cf_out=cf_out,
                              mp1c=mp1c,

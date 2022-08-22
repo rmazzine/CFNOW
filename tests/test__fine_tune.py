@@ -366,6 +366,7 @@ class TestScriptBase(unittest.TestCase):
 
     @patch('cfnow._fine_tune._stop_optimization_conditions')
     def test__fine_tuning_one_iteration(self, mock__stop_optimization_conditions):
+        finder_strategy = None
         cf_data_type = 'tabular'
         factual = pd.Series({0: 1, 1: 2, 2: 1, 3: 0})
         cf_out = np.array([0, 2, 0, 1])
@@ -393,9 +394,26 @@ class TestScriptBase(unittest.TestCase):
         mock__stop_optimization_conditions.return_value = False
 
         result_finetune = _fine_tuning(
-            cf_data_type, factual, cf_out, _mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types,
-            ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds,
-            _cf_finder, avoid_back_original, threshold_changes, verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            cf_out=cf_out,
+            mp1c=_mp1c,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            feat_types=feat_types,
+            ft_change_factor=ft_change_factor,
+            it_max=it_max,
+            size_tabu=size_tabu,
+            ft_it_max=ft_it_max,
+            ft_threshold_distance=ft_threshold_distance,
+            time_start=time_start,
+            limit_seconds=limit_seconds,
+            cf_finder=_cf_finder,
+            avoid_back_original=avoid_back_original,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         self.assertIsInstance(result_finetune[0], np.ndarray)
         self.assertIsInstance(result_finetune[1], np.ndarray)
@@ -404,6 +422,7 @@ class TestScriptBase(unittest.TestCase):
     @patch('cfnow._fine_tune.deque')
     @patch('cfnow._fine_tune._stop_optimization_conditions')
     def test__fine_tuning_one_back_factual_not_ohe(self, mock__stop_optimization_conditions, mock_deque):
+        finder_strategy = None
         cf_data_type = 'tabular'
         factual = pd.Series({0: 1, 1: 2, 2: 1, 3: 0})
         cf_out = np.array([0, 2, 1, 0])
@@ -431,9 +450,26 @@ class TestScriptBase(unittest.TestCase):
         mock__stop_optimization_conditions.return_value = False
 
         result_finetune = _fine_tuning(
-            cf_data_type, factual, cf_out, _mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types,
-            ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds,
-            cf_finder, avoid_back_original, threshold_changes, verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            cf_out=cf_out,
+            mp1c=_mp1c,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            feat_types=feat_types,
+            ft_change_factor=ft_change_factor,
+            it_max=it_max,
+            size_tabu=size_tabu,
+            ft_it_max=ft_it_max,
+            ft_threshold_distance=ft_threshold_distance,
+            time_start=time_start,
+            limit_seconds=limit_seconds,
+            cf_finder=cf_finder,
+            avoid_back_original=avoid_back_original,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         self.assertListEqual(list(result_finetune[0]), list(cf_out))
 
@@ -443,6 +479,7 @@ class TestScriptBase(unittest.TestCase):
     @patch('cfnow._fine_tune.deque')
     @patch('cfnow._fine_tune._stop_optimization_conditions')
     def test__fine_tuning_one_back_factual_ohe(self, mock__stop_optimization_conditions, mock_deque):
+        finder_strategy = None
         cf_data_type = 'tabular'
         factual = pd.Series({0: 1, 1: 1, 2: 1, 3: 0})
         cf_out = np.array([1, 1, 0, 1])
@@ -470,9 +507,26 @@ class TestScriptBase(unittest.TestCase):
         mock__stop_optimization_conditions.return_value = False
 
         result_finetune = _fine_tuning(
-            cf_data_type, factual, cf_out, _mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types,
-            ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds,
-            cf_finder, avoid_back_original, threshold_changes, verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            cf_out=cf_out,
+            mp1c=_mp1c,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            feat_types=feat_types,
+            ft_change_factor=ft_change_factor,
+            it_max=it_max,
+            size_tabu=size_tabu,
+            ft_it_max=ft_it_max,
+            ft_threshold_distance=ft_threshold_distance,
+            time_start=time_start,
+            limit_seconds=limit_seconds,
+            cf_finder=cf_finder,
+            avoid_back_original=avoid_back_original,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         self.assertListEqual(list(result_finetune[0]), list(cf_out))
 
@@ -487,6 +541,7 @@ class TestScriptBase(unittest.TestCase):
     def test__fine_tuning_found_best(
             self, mock__stop_optimization_conditions, mock__obj_manhattan, mock__generate_change_vectors,
             mock__calculate_change_factor, mock__create_mod_change):
+        finder_strategy = None
         cf_data_type = 'tabular'
         factual = pd.Series({0: 1, 1: 2, 2: 1, 3: 0})
         cf_out = np.array([0, 2, 0, 1])
@@ -514,9 +569,26 @@ class TestScriptBase(unittest.TestCase):
         mock__stop_optimization_conditions.return_value = True
 
         result_finetune = _fine_tuning(
-            cf_data_type, factual, cf_out, _mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types,
-            ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds,
-            _cf_finder, avoid_back_original, threshold_changes, verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            cf_out=cf_out,
+            mp1c=_mp1c,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            feat_types=feat_types,
+            ft_change_factor=ft_change_factor,
+            it_max=it_max,
+            size_tabu=size_tabu,
+            ft_it_max=ft_it_max,
+            ft_threshold_distance=ft_threshold_distance,
+            time_start=time_start,
+            limit_seconds=limit_seconds,
+            cf_finder=_cf_finder,
+            avoid_back_original=avoid_back_original,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         mock__generate_change_vectors.assert_not_called()
         mock__calculate_change_factor.assert_not_called()
@@ -529,6 +601,7 @@ class TestScriptBase(unittest.TestCase):
     @patch('cfnow._fine_tune.logging')
     @patch('cfnow._fine_tune._stop_optimization_conditions')
     def test__fine_tuning_verbose(self, mock__stop_optimization_conditions, mock_logging):
+        finder_strategy = None
         cf_data_type = 'tabular'
         factual = pd.Series({0: 1, 1: 2, 2: 1, 3: 0})
         cf_out = np.array([0, 2, 0, 1])
@@ -556,9 +629,26 @@ class TestScriptBase(unittest.TestCase):
         mock__stop_optimization_conditions.return_value = False
 
         result_finetune = _fine_tuning(
-            cf_data_type, factual, cf_out, _mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types,
-            ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds,
-            _cf_finder, avoid_back_original, threshold_changes, verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            cf_out=cf_out,
+            mp1c=_mp1c,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            feat_types=feat_types,
+            ft_change_factor=ft_change_factor,
+            it_max=it_max,
+            size_tabu=size_tabu,
+            ft_it_max=ft_it_max,
+            ft_threshold_distance=ft_threshold_distance,
+            time_start=time_start,
+            limit_seconds=limit_seconds,
+            cf_finder=_cf_finder,
+            avoid_back_original=avoid_back_original,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         mock_logging.log.assert_called()
 
@@ -570,6 +660,7 @@ class TestScriptBase(unittest.TestCase):
     def test__fine_tuning_no_changes(self, mock__stop_optimization_conditions,
                                                     mock__generate_change_vectors, mock_warnings,
                                                     mock__create_mod_change, mock__calculate_change_factor):
+        finder_strategy = None
         cf_data_type = 'tabular'
         factual = pd.Series({0: 1, 1: 2, 2: 1, 3: 0})
         cf_out = np.array([0, 2, 0, 1])
@@ -599,9 +690,26 @@ class TestScriptBase(unittest.TestCase):
         mock__generate_change_vectors.return_value = (np.array([]), [], np.array([0, 0, 0, 0]))
 
         result_finetune = _fine_tuning(
-            cf_data_type, factual, cf_out, _mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types,
-            ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds,
-            _cf_finder, avoid_back_original, threshold_changes, verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            cf_out=cf_out,
+            mp1c=_mp1c,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            feat_types=feat_types,
+            ft_change_factor=ft_change_factor,
+            it_max=it_max,
+            size_tabu=size_tabu,
+            ft_it_max=ft_it_max,
+            ft_threshold_distance=ft_threshold_distance,
+            time_start=time_start,
+            limit_seconds=limit_seconds,
+            cf_finder=_cf_finder,
+            avoid_back_original=avoid_back_original,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         mock_warnings.warn.assert_called()
 

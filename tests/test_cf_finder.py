@@ -349,7 +349,8 @@ class TestScriptBase(unittest.TestCase):
         mock_get_ohe_params.assert_called_with(factual, False)
 
         # Check call for cf_finder
-        self.assertEqual(len(mock_greedy_generator.call_args[1]), 16)
+        self.assertEqual(len(mock_greedy_generator.call_args[1]), 17)
+        self.assertEqual(mock_greedy_generator.call_args[1]['finder_strategy'], None)
         self.assertEqual(mock_greedy_generator.call_args[1]['cf_data_type'], 'tabular')
         self.assertListEqual(mock_greedy_generator.call_args[1]['factual'].tolist(), factual.tolist())
         self.assertEqual(mock_greedy_generator.call_args[1]['mp1c'], mock_mp1c)
@@ -368,7 +369,8 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_greedy_generator.call_args[1]['verbose'], verbose)
 
         # Check call for _fine_tuning
-        self.assertEqual(len(mock_fine_tuning.call_args[1]), 19)
+        self.assertEqual(len(mock_fine_tuning.call_args[1]), 20)
+        self.assertEqual(mock_fine_tuning.call_args[1]['finder_strategy'], None)
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_data_type'], 'tabular')
         self.assertListEqual(mock_fine_tuning.call_args[1]['factual'].tolist(), factual.tolist())
         self.assertListEqual(mock_fine_tuning.call_args[1]['cf_out'].tolist(), cf_out.tolist())
@@ -452,7 +454,63 @@ class TestScriptBase(unittest.TestCase):
         # Check if _random_generator was called
         mock_random_generator.assert_called_once()
 
-        # Check if _fine_tuning called _random_generator
+        self.assertEqual(mock_random_generator.call_args[1]['finder_strategy'], None)
+        self.assertEqual(mock_fine_tuning.call_args[1]['finder_strategy'], None)
+        self.assertEqual(mock_fine_tuning.call_args[1]['cf_finder'], mock_random_generator)
+
+    @patch('cfnow.cf_finder._CFTabular')
+    @patch('cfnow.cf_finder._fine_tuning')
+    @patch('cfnow.cf_finder.logging')
+    @patch('cfnow.cf_finder.datetime')
+    @patch('cfnow.cf_finder._get_ohe_params')
+    @patch('cfnow.cf_finder._adjust_model_class')
+    @patch('cfnow.cf_finder._standardize_predictor')
+    @patch('cfnow.cf_finder._check_prob_func')
+    @patch('cfnow.cf_finder._check_vars')
+    @patch('cfnow.cf_finder._check_factual')
+    @patch('cfnow.cf_finder.warnings')
+    @patch('cfnow.cf_finder._greedy_generator')
+    @patch('cfnow.cf_finder._random_generator')
+    def test_find_tabular_cf_strategy_random_sequential(
+            self, mock_random_generator, mock_greedy_generator, mock_warnings, mock_check_factual, mock_check_vars,
+            mock_check_prob_func, mock_standardize_predictor, mock_adjust_model_class, mock_get_ohe_params,
+            mock_datetime, mock_logging, mock_fine_tuning, mock_CFTabular):
+        factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
+                             'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
+        model_predict_proba = MagicMock()
+        feat_types = {'num1': 'num', 'num2': 'num', 'ohe1_0': 'cat', 'ohe1_1': 'cat', 'ohe1_2': 'cat',
+                      'bin1': 'cat', 'bin2': 'cat', 'ohe2_0': 'cat', 'ohe2_1': 'cat', 'ohe2_2': 'cat'}
+        cf_strategy = 'random-sequential'
+        increase_threshold = 0
+        it_max = 1000
+        limit_seconds = 120
+        ft_change_factor = 0.1
+        ft_it_max = 1000
+        size_tabu = 5
+        ft_threshold_distance = 0.01
+        has_ohe = False
+        avoid_back_original = False
+        verbose = False
+
+        mock_get_ohe_params.return_value = [[2, 3, 4], [7, 8, 9]], [2, 3, 4, 7, 8, 9]
+
+        cf_out = np.array([-25, 10, 0, 1, 0, 1, 1, 0, 1, 0])
+        mock_random_generator.return_value = cf_out
+        mock_greedy_generator.return_value = cf_out
+
+        mock_mp1c = MagicMock()
+        mock_mp1c.return_value = [1.0]
+        mock_adjust_model_class.return_value = mock_mp1c
+
+        response_obj = find_tabular(factual, model_predict_proba, feat_types, cf_strategy, increase_threshold, it_max,
+                                    limit_seconds, ft_change_factor, ft_it_max, size_tabu, ft_threshold_distance,
+                                    has_ohe, avoid_back_original, verbose)
+
+        # Check if _random_generator was called
+        mock_random_generator.assert_called_once()
+
+        self.assertEqual(mock_random_generator.call_args[1]['finder_strategy'], 'sequential')
+        self.assertEqual(mock_fine_tuning.call_args[1]['finder_strategy'], 'sequential')
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_finder'], mock_random_generator)
 
     @patch('cfnow.cf_finder._CFTabular')

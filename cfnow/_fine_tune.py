@@ -135,11 +135,12 @@ def _stop_optimization_conditions(factual_np, c_cf, limit_seconds, time_start, f
     return False
 
 
-def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold, feat_types,
-                 ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start, limit_seconds,
-                 cf_finder, avoid_back_original, threshold_changes, verbose):
+def _fine_tuning(finder_strategy, cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold,
+                 feat_types, ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start,
+                 limit_seconds, cf_finder, avoid_back_original, threshold_changes, verbose):
     """
 
+    :param finder_strategy: The strategy used by the CF generator
     :param cf_data_type: Type of data
     :param factual: Factual point
     :param cf_out: Counterfactual generated from factual
@@ -234,7 +235,8 @@ def _fine_tuning(cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, inc
                 tabu_list.append([change_original_idx])
 
             # Return to CF, however, considering the Tabu list
-            c_cf = cf_finder(cf_data_type=cf_data_type,
+            c_cf = cf_finder(finder_strategy=finder_strategy,
+                             cf_data_type=cf_data_type,
                              factual=pd.DataFrame([c_cf], columns=factual.index).iloc[0],
                              mp1c=mp1c,
                              feat_types=feat_types,

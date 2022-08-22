@@ -1441,6 +1441,7 @@ class TestScriptBase(unittest.TestCase):
 
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
     def test__random_generator_example(self, mock_random_generator_stop_conditions):
+        finder_strategy = None
         cf_data_type = None
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -1483,9 +1484,24 @@ class TestScriptBase(unittest.TestCase):
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
 
-        cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
-                                   ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, threshold_changes, verbose)
+        cf_try = _random_generator(
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         self.assertTrue((factual_np != cf_try).sum() > 0)
 
@@ -1494,6 +1510,7 @@ class TestScriptBase(unittest.TestCase):
 
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
     def test__random_generator_best_cf(self, mock_random_generator_stop_conditions):
+        finder_strategy = None
         cf_data_type = None
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -1540,9 +1557,24 @@ class TestScriptBase(unittest.TestCase):
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
 
-        cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
-                                   ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, threshold_changes,  verbose)
+        cf_try = _random_generator(
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         self.assertListEqual(cf_try.tolist(), [-50, 10, 1, 0, 0, 1, 0, 1, 0, 0])
 
@@ -1550,6 +1582,7 @@ class TestScriptBase(unittest.TestCase):
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
     def test__random_generator_momentum_increase(
             self, mock_random_generator_stop_conditions, mock_create_factual_changes):
+        finder_strategy = None
         cf_data_type = None
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -1580,9 +1613,24 @@ class TestScriptBase(unittest.TestCase):
         mock_random_generator_stop_conditions.side_effect = [True, True, False]
         mock_create_factual_changes.side_effect = lambda *args: _create_factual_changes(*args)
 
-        cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
-                                   ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, threshold_changes, verbose)
+        cf_try = _random_generator(
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         # Verify if momentum was incremented (equal to 1) in the last iteration
         self.assertEqual(mock_create_factual_changes.call_args_list[-1][0][3], 1)
@@ -1593,7 +1641,7 @@ class TestScriptBase(unittest.TestCase):
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
     def test__random_generator_threshold_changes(
             self, mock_random_generator_stop_conditions, mock_generate_random_changes):
-
+        finder_strategy = None
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
         factual_np = factual.to_numpy()
@@ -1639,9 +1687,23 @@ class TestScriptBase(unittest.TestCase):
         mock_random_generator_stop_conditions.side_effect = [True, False]
         mock_generate_random_changes.side_effect = lambda *args: _generate_random_changes(*args)
         cf_try_tabular_threshold = _random_generator(
-            cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
-            verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
         # Assert the threshold is 1000
         self.assertEqual(mock_generate_random_changes.call_args_list[0][0][6], 1000)
 
@@ -1650,9 +1712,23 @@ class TestScriptBase(unittest.TestCase):
         mock_random_generator_stop_conditions.side_effect = [True, False]
         mock_generate_random_changes.side_effect = lambda *args: _generate_random_changes(*args)
         cf_try_tabular_threshold = _random_generator(
-            cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
-            verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
         # Assert the threshold is 1000
         self.assertEqual(mock_generate_random_changes.call_args_list[1][0][6], 1000)
 
@@ -1661,9 +1737,23 @@ class TestScriptBase(unittest.TestCase):
         mock_random_generator_stop_conditions.side_effect = [True, False]
         mock_generate_random_changes.side_effect = lambda *args: _generate_random_changes(*args)
         cf_try_tabular_threshold = _random_generator(
-            cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
-            verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
         # Assert the threshold is 1000
         self.assertEqual(mock_generate_random_changes.call_args_list[2][0][6], 1000)
 
@@ -1671,6 +1761,7 @@ class TestScriptBase(unittest.TestCase):
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
     def test__random_generator_no_possible_changes(
             self, mock_random_generator_stop_conditions, mock_generate_random_changes):
+        finder_strategy = None
         cf_data_type = 'tabular'
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -1729,9 +1820,24 @@ class TestScriptBase(unittest.TestCase):
                        [0.0, -6.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]]),
             []]
 
-        cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
-                                   ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, threshold_changes, verbose)
+        cf_try = _random_generator(
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         # In this case, as there are no changes, the output CF must be the same as the factual
         self.assertFalse((factual_np != cf_try).sum() > 0)
@@ -1739,6 +1845,7 @@ class TestScriptBase(unittest.TestCase):
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
     def test__random_generator_all_features_tabu(
             self, mock_random_generator_stop_conditions):
+        finder_strategy = None
         cf_data_type = 'tabular'
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -1782,9 +1889,24 @@ class TestScriptBase(unittest.TestCase):
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
 
-        cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
-                                   ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, threshold_changes, verbose)
+        cf_try = _random_generator(
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         # In this case, as there are no changes (since all features are in the Tabu list),
         # the output CF must be the same as the factual
@@ -1793,6 +1915,7 @@ class TestScriptBase(unittest.TestCase):
     @patch('cfnow._cf_searchers.logging')
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
     def test__random_generator_verbose(self, mock_random_generator_stop_conditions, mock_logging):
+        finder_strategy = None
         cf_data_type = None
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -1836,9 +1959,24 @@ class TestScriptBase(unittest.TestCase):
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
 
-        cf_try = _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
-                                   ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original,
-                                   ft_time, ft_time_limit, threshold_changes, verbose)
+        cf_try = _random_generator(
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         mock_logging.log.assert_called()
 
@@ -2067,6 +2205,7 @@ class TestScriptBase(unittest.TestCase):
 
     @patch('cfnow._cf_searchers._greedy_generator_stop_conditions')
     def test__greedy_generator_example(self, mock_greedy_generator_stop_conditions):
+        finder_strategy = None
         cf_data_type = None
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -2111,9 +2250,23 @@ class TestScriptBase(unittest.TestCase):
         mock_greedy_generator_stop_conditions.side_effect = [True, False]
 
         cf_try = _greedy_generator(
-            cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
-            verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         self.assertTrue((factual_np != cf_try).sum() > 0)
 
@@ -2127,6 +2280,7 @@ class TestScriptBase(unittest.TestCase):
     def test__greedy_generator_recent_improvements_below_required(
             self, mock_greedy_generator_stop_conditions, mock_create_factual_changes, mock_generate_greedy_changes,
             mock_deque):
+        finder_strategy = None
         cf_data_type = None
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -2174,9 +2328,23 @@ class TestScriptBase(unittest.TestCase):
         mock_greedy_generator_stop_conditions.side_effect = [True, True, False]
 
         cf_try = _greedy_generator(
-            cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
-            verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         # Verify if momentum was increased in the last step
         self.assertEqual(mock_create_factual_changes.call_args_list[-1][0][3], 1)
@@ -2191,6 +2359,7 @@ class TestScriptBase(unittest.TestCase):
     def test__greedy_generator_recent_improvements_below_required_tabu_ohe(
             self, mock_greedy_generator_stop_conditions, mock_create_factual_changes, mock_generate_greedy_changes,
             mock_deque):
+        finder_strategy = None
         cf_data_type = None
         factual = pd.Series({'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
         factual_np = factual.to_numpy()
@@ -2237,9 +2406,23 @@ class TestScriptBase(unittest.TestCase):
         mock_greedy_generator_stop_conditions.side_effect = [True, True, False]
 
         cf_try = _greedy_generator(
-            cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
-            verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         # Verify if momentum was increased in the last step
         self.assertEqual(mock_create_factual_changes.call_args_list[-1][0][3], 1)
@@ -2258,6 +2441,7 @@ class TestScriptBase(unittest.TestCase):
     def test__greedy_generator_recent_improvements_below_required_reset_momentum(
             self, mock_greedy_generator_stop_conditions, mock_create_factual_changes, mock_generate_greedy_changes,
             mock_deque):
+        finder_strategy = None
         cf_data_type = None
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -2306,9 +2490,23 @@ class TestScriptBase(unittest.TestCase):
         mock_greedy_generator_stop_conditions.side_effect = [True, True, True, False]
 
         cf_try = _greedy_generator(
-            cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
-            verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         # Verify if momentum was increased in the last step
         self.assertEqual(mock_create_factual_changes.call_args_list[-1][0][3], 0)
@@ -2318,6 +2516,7 @@ class TestScriptBase(unittest.TestCase):
 
     @patch('cfnow._cf_searchers._greedy_generator_stop_conditions')
     def test__greedy_generator_get_best_cf(self, mock_greedy_generator_stop_conditions):
+        finder_strategy = None
         cf_data_type = None
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -2365,9 +2564,23 @@ class TestScriptBase(unittest.TestCase):
         mock_greedy_generator_stop_conditions.side_effect = [True, False]
 
         cf_try = _greedy_generator(
-            cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
-            verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         # Verify if result CF is the one with the highest probability as defined in the function above
         self.assertListEqual(cf_try.tolist(), [-50, 10, 1, 0, 0, 1, 0, 1, 0, 0])
@@ -2375,6 +2588,7 @@ class TestScriptBase(unittest.TestCase):
     @patch('cfnow._cf_searchers._generate_greedy_changes')
     @patch('cfnow._cf_searchers._greedy_generator_stop_conditions')
     def test__greedy_generator_no_changes(self, mock_greedy_generator_stop_conditions, mock_generate_greedy_changes):
+        finder_strategy = None
         cf_data_type = None
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -2420,15 +2634,30 @@ class TestScriptBase(unittest.TestCase):
         mock_generate_greedy_changes.return_value = np.array([])
 
         cf_try = _greedy_generator(
-            cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
-            verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         self.assertTrue((factual_np != cf_try).sum() == 0)
 
     @patch('cfnow._cf_searchers.logging')
     @patch('cfnow._cf_searchers._greedy_generator_stop_conditions')
     def test__greedy_generator_verbose(self, mock_greedy_generator_stop_conditions, mock_logging):
+        finder_strategy = None
         cf_data_type = None
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
@@ -2473,8 +2702,162 @@ class TestScriptBase(unittest.TestCase):
         mock_greedy_generator_stop_conditions.side_effect = [True, False]
 
         cf_try = _greedy_generator(
-            cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-            increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes,
-            verbose)
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
 
         mock_logging.log.assert_called()
+
+    @patch('cfnow._cf_searchers._random_generator_stop_conditions')
+    def test__random_generator_sequential_update(self, mock_random_generator_stop_conditions):
+        finder_strategy = 'sequential'
+        cf_data_type = None
+        factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
+                             'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
+        factual_np = factual.to_numpy()
+
+        mp1c = MagicMock()
+
+        def _mp1c_side_effect_function(x):
+            # This function returns a CF for any set different from the factual
+            if type(x) == pd.DataFrame:
+                equal_to_factual = (x.to_numpy() == factual_np).sum(axis=1) == factual_np.shape[0]
+            else:
+                equal_to_factual = (x == factual_np).sum(axis=1) == factual_np.shape[0]
+
+            out_result = []
+            for row_etf in equal_to_factual:
+                if row_etf:
+                    out_result.append(0.0)
+                else:
+                    out_result.append(1.0)
+
+            return out_result
+
+        # This function finds a CF for any modification done
+        mp1c.side_effect = _mp1c_side_effect_function
+
+        feat_types = {'num1': 'num', 'num2': 'num', 'ohe1_0': 'cat', 'ohe1_1': 'cat', 'ohe1_2': 'cat',
+                      'bin1': 'cat', 'bin2': 'cat', 'ohe2_0': 'cat', 'ohe2_1': 'cat', 'ohe2_2': 'cat'}
+        it_max = 100
+        ft_change_factor = 0.5
+        ohe_list = [[2, 3, 4], [7, 8, 9]]
+        ohe_indexes = [2, 3, 4, 7, 8, 9]
+        increase_threshold = None
+        tabu_list = None
+        size_tabu = 3
+        avoid_back_original = None
+        ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
+        ft_time_limit = 100
+        threshold_changes = 1000
+        verbose = False
+
+        mock_random_generator_stop_conditions.side_effect = [True, False]
+
+        cf_try = _random_generator(
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
+
+        self.assertTrue((factual_np != cf_try).sum() > 0)
+
+        # Verify if iterations variable was incremented
+        self.assertEqual(mock_random_generator_stop_conditions.call_args_list[1].args[1], 2)
+
+    @patch('cfnow._cf_searchers._random_generator_stop_conditions')
+    def test__random_generator_random_below_threshold(self, mock_random_generator_stop_conditions):
+        finder_strategy = None
+        cf_data_type = None
+        factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
+                             'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
+        factual_np = factual.to_numpy()
+
+        mp1c = MagicMock()
+
+        def _mp1c_side_effect_function(x):
+            # This function returns a CF for any set different from the factual
+            if type(x) == pd.DataFrame:
+                equal_to_factual = (x.to_numpy() == factual_np).sum(axis=1) == factual_np.shape[0]
+            else:
+                equal_to_factual = (x == factual_np).sum(axis=1) == factual_np.shape[0]
+
+            out_result = []
+            for row_etf in equal_to_factual:
+                if row_etf:
+                    out_result.append(0.0)
+                else:
+                    out_result.append(0.4)
+
+            return out_result
+
+        # This function finds a CF for any modification done
+        mp1c.side_effect = _mp1c_side_effect_function
+
+        feat_types = {'num1': 'num', 'num2': 'num', 'ohe1_0': 'cat', 'ohe1_1': 'cat', 'ohe1_2': 'cat',
+                      'bin1': 'cat', 'bin2': 'cat', 'ohe2_0': 'cat', 'ohe2_1': 'cat', 'ohe2_2': 'cat'}
+        it_max = 100
+        ft_change_factor = 0.5
+        ohe_list = [[2, 3, 4], [7, 8, 9]]
+        ohe_indexes = [2, 3, 4, 7, 8, 9]
+        increase_threshold = None
+        tabu_list = None
+        size_tabu = 3
+        avoid_back_original = None
+        ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
+        ft_time_limit = 100
+        threshold_changes = 1000
+        verbose = False
+
+        mock_random_generator_stop_conditions.side_effect = [True, False]
+
+        cf_try = _random_generator(
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            verbose=verbose)
+
+        self.assertTrue((factual_np != cf_try).sum() == 0)
+
+        # Verify if iterations variable was incremented
+        self.assertEqual(mock_random_generator_stop_conditions.call_args_list[1].args[1], 2)
