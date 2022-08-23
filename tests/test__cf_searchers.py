@@ -1385,57 +1385,61 @@ class TestScriptBase(unittest.TestCase):
 
     @patch('cfnow._cf_searchers.datetime')
     def test__random_generator_stop_conditions_continue_loop(self, mock_datetime):
-        cf_try_prob = 0.0
         iterations = 1
+        cf_unique = []
         it_max = 100
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        count_cf = 1
 
         mock_datetime.now.return_value = datetime.datetime(2000, 10, 10, 10, 10, 11)
 
-        result = _random_generator_stop_conditions(cf_try_prob, iterations, ft_time, it_max, ft_time_limit)
+        result = _random_generator_stop_conditions(iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf)
 
         self.assertTrue(result)
 
     @patch('cfnow._cf_searchers.datetime')
     def test__random_generator_stop_conditions_cf_found(self, mock_datetime):
-        cf_try_prob = 1.0
         iterations = 1
+        cf_unique = [[1, 2, 3]]
         it_max = 100
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        count_cf = 1
 
         mock_datetime.now.return_value = datetime.datetime(2000, 10, 10, 10, 10, 11)
 
-        result = _random_generator_stop_conditions(cf_try_prob, iterations, ft_time, it_max, ft_time_limit)
+        result = _random_generator_stop_conditions(iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf)
 
         self.assertFalse(result)
 
     @patch('cfnow._cf_searchers.datetime')
     def test__random_generator_stop_conditions_max_iterations_reached(self, mock_datetime):
-        cf_try_prob = 0.1
         iterations = 100
+        cf_unique = []
         it_max = 100
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        count_cf = 1
 
         mock_datetime.now.return_value = datetime.datetime(2000, 10, 10, 10, 10, 11)
 
-        result = _random_generator_stop_conditions(cf_try_prob, iterations, ft_time, it_max, ft_time_limit)
+        result = _random_generator_stop_conditions(iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf)
 
         self.assertFalse(result)
 
     @patch('cfnow._cf_searchers.datetime')
     def test__random_generator_stop_conditions_timeout(self, mock_datetime):
-        cf_try_prob = 0.1
         iterations = 1
+        cf_unique = []
         it_max = 100
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        count_cf = 1
 
         mock_datetime.now.return_value = datetime.datetime(2000, 10, 10, 10, 20, 10)
 
-        result = _random_generator_stop_conditions(cf_try_prob, iterations, ft_time, it_max, ft_time_limit)
+        result = _random_generator_stop_conditions(iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf)
 
         self.assertFalse(result)
 
@@ -1463,7 +1467,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(1.0)
 
-            return out_result
+            return np.array(out_result)
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
 
@@ -1480,6 +1484,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
@@ -1501,12 +1507,18 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
-        self.assertTrue((factual_np != cf_try).sum() > 0)
+        # No CF can be equal to the factual
+        self.assertTrue(sum([np.array_equal(cf, factual_np) for cf in cf_try]) == 0)
+
+        # Since we have 10 results with probability above 0.5 we expect 10 results
+        self.assertEqual(len(cf_try), 10)
 
         # Verify if iterations variable was incremented
-        self.assertEqual(mock_random_generator_stop_conditions.call_args_list[1].args[1], 2)
+        self.assertEqual(mock_random_generator_stop_conditions.call_args_list[1][1]['iterations'], 2)
 
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
     def test__random_generator_best_cf(self, mock_random_generator_stop_conditions):
@@ -1535,7 +1547,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(0.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -1553,6 +1565,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
@@ -1574,9 +1588,12 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
-        self.assertListEqual(cf_try.tolist(), [-50, 10, 1, 0, 0, 1, 0, 1, 0, 0])
+        # Verify if the first result is the best CF
+        self.assertListEqual(cf_try[0].tolist(), [-50, 10, 1, 0, 0, 1, 0, 1, 0, 0])
 
     @patch('cfnow._cf_searchers._create_factual_changes')
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
@@ -1592,8 +1609,13 @@ class TestScriptBase(unittest.TestCase):
 
         # This function will run one full sequence of feature modification loops, then, in the second sequence
         # In the first change it will return a 1.0 prediction, this is done because this will allow the
-        # momentum increment
-        mp1c.side_effect = [*[[0.0]]*11, [1.0], [1.0]]
+        # momentum increment.
+        def _mp1c_side_effect_function(cf_tries):
+            if mp1c.call_count > 5:
+                return np.array([1.0]*len(cf_tries))
+            return np.array([0.0]*len(cf_tries))
+
+        mp1c.side_effect = _mp1c_side_effect_function
 
         feat_types = {'num1': 'num', 'num2': 'num', 'ohe1_0': 'cat', 'ohe1_1': 'cat', 'ohe1_2': 'cat',
                       'bin1': 'cat', 'bin2': 'cat', 'ohe2_0': 'cat', 'ohe2_1': 'cat', 'ohe2_2': 'cat'}
@@ -1608,6 +1630,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, True, False]
@@ -1630,12 +1654,12 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
         # Verify if momentum was incremented (equal to 1) in the last iteration
         self.assertEqual(mock_create_factual_changes.call_args_list[-1][0][3], 1)
-
-        self.assertTrue((factual_np != cf_try).sum() > 0)
 
     @patch('cfnow._cf_searchers._generate_random_changes')
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
@@ -1662,7 +1686,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(1.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -1680,6 +1704,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         # Verify threshold for tabular data
@@ -1703,6 +1729,8 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
         # Assert the threshold is 1000
         self.assertEqual(mock_generate_random_changes.call_args_list[0][0][6], 1000)
@@ -1728,6 +1756,8 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
         # Assert the threshold is 1000
         self.assertEqual(mock_generate_random_changes.call_args_list[1][0][6], 1000)
@@ -1753,6 +1783,8 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
         # Assert the threshold is 1000
         self.assertEqual(mock_generate_random_changes.call_args_list[2][0][6], 1000)
@@ -1783,7 +1815,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(1.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -1801,6 +1833,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
@@ -1837,10 +1871,12 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
-        # In this case, as there are no changes, the output CF must be the same as the factual
-        self.assertFalse((factual_np != cf_try).sum() > 0)
+        # In this case, as there are no changes, the output CF must be an empty array
+        self.assertTrue(len(cf_try) == 0)
 
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
     def test__random_generator_all_features_tabu(
@@ -1867,7 +1903,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(1.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -1885,6 +1921,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
@@ -1906,11 +1944,13 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
         # In this case, as there are no changes (since all features are in the Tabu list),
-        # the output CF must be the same as the factual
-        self.assertFalse((factual_np != cf_try).sum() > 0)
+        # the output must be an empty list
+        self.assertTrue(len(cf_try) == 0)
 
     @patch('cfnow._cf_searchers.logging')
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
@@ -1937,7 +1977,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(1.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -1955,6 +1995,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = True
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
@@ -1976,17 +2018,20 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
         mock_logging.log.assert_called()
 
     @patch('cfnow._cf_searchers.datetime')
     def test__greedy_generator_stop_conditions_continue_loop(self, mock_datetime):
-        cf_try_prob = 0.0
         iterations = 1
+        cf_unique = []
         it_max = 100
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        count_cf = 1
         score_increase = 1.0
         increase_threshold = 0.0
         activate_tabu = False
@@ -1994,17 +2039,19 @@ class TestScriptBase(unittest.TestCase):
         mock_datetime.now.return_value = datetime.datetime(2000, 10, 10, 10, 10, 11)
 
         result = _greedy_generator_stop_conditions(
-            cf_try_prob, iterations, ft_time, it_max, ft_time_limit, score_increase, increase_threshold, activate_tabu)
+            iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf, score_increase,
+            increase_threshold, activate_tabu)
 
         self.assertTrue(result)
 
     @patch('cfnow._cf_searchers.datetime')
     def test__greedy_generator_stop_conditions_cf_found(self, mock_datetime):
-        cf_try_prob = 1.0
         iterations = 1
+        cf_unique = [[0, 1]]
         it_max = 100
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        count_cf = 1
         score_increase = 1.0
         increase_threshold = 0.0
         activate_tabu = False
@@ -2012,17 +2059,19 @@ class TestScriptBase(unittest.TestCase):
         mock_datetime.now.return_value = datetime.datetime(2000, 10, 10, 10, 10, 11)
 
         result = _greedy_generator_stop_conditions(
-            cf_try_prob, iterations, ft_time, it_max, ft_time_limit, score_increase, increase_threshold, activate_tabu)
+            iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf, score_increase,
+            increase_threshold, activate_tabu)
 
         self.assertFalse(result)
 
     @patch('cfnow._cf_searchers.datetime')
     def test__greedy_generator_stop_conditions_iterations(self, mock_datetime):
-        cf_try_prob = 0.0
         iterations = 100
+        cf_unique = []
         it_max = 100
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        count_cf = 1
         score_increase = 1.0
         increase_threshold = 0.0
         activate_tabu = False
@@ -2030,17 +2079,19 @@ class TestScriptBase(unittest.TestCase):
         mock_datetime.now.return_value = datetime.datetime(2000, 10, 10, 10, 10, 11)
 
         result = _greedy_generator_stop_conditions(
-            cf_try_prob, iterations, ft_time, it_max, ft_time_limit, score_increase, increase_threshold, activate_tabu)
+            iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf, score_increase,
+            increase_threshold, activate_tabu)
 
         self.assertFalse(result)
 
     @patch('cfnow._cf_searchers.datetime')
     def test__greedy_generator_stop_conditions_score_increase_no_tabu(self, mock_datetime):
-        cf_try_prob = 0.0
         iterations = 0
+        cf_unique = []
         it_max = 100
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        count_cf = 1
         score_increase = 0.0
         increase_threshold = 1.0
         activate_tabu = False
@@ -2048,17 +2099,19 @@ class TestScriptBase(unittest.TestCase):
         mock_datetime.now.return_value = datetime.datetime(2000, 10, 10, 10, 10, 11)
 
         result = _greedy_generator_stop_conditions(
-            cf_try_prob, iterations, ft_time, it_max, ft_time_limit, score_increase, increase_threshold, activate_tabu)
+            iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf, score_increase,
+            increase_threshold, activate_tabu)
 
         self.assertFalse(result)
 
     @patch('cfnow._cf_searchers.datetime')
     def test__greedy_generator_stop_conditions_score_increase_with_tabu(self, mock_datetime):
-        cf_try_prob = 0.0
         iterations = 0
+        cf_unique = []
         it_max = 100
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        count_cf = 1
         score_increase = 0.0
         increase_threshold = 1.0
         activate_tabu = True
@@ -2066,17 +2119,19 @@ class TestScriptBase(unittest.TestCase):
         mock_datetime.now.return_value = datetime.datetime(2000, 10, 10, 10, 10, 11)
 
         result = _greedy_generator_stop_conditions(
-            cf_try_prob, iterations, ft_time, it_max, ft_time_limit, score_increase, increase_threshold, activate_tabu)
+            iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf, score_increase,
+            increase_threshold, activate_tabu)
 
         self.assertTrue(result)
 
     @patch('cfnow._cf_searchers.datetime')
     def test__greedy_generator_stop_conditions_score_timeout(self, mock_datetime):
-        cf_try_prob = 0.0
         iterations = 0
+        cf_unique = []
         it_max = 100
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
+        count_cf = 1
         score_increase = 1.0
         increase_threshold = 0.0
         activate_tabu = False
@@ -2084,7 +2139,8 @@ class TestScriptBase(unittest.TestCase):
         mock_datetime.now.return_value = datetime.datetime(2000, 10, 10, 20, 10, 11)
 
         result = _greedy_generator_stop_conditions(
-            cf_try_prob, iterations, ft_time, it_max, ft_time_limit, score_increase, increase_threshold, activate_tabu)
+            iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf, score_increase,
+            increase_threshold, activate_tabu)
 
         self.assertFalse(result)
 
@@ -2227,7 +2283,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(1.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -2245,6 +2301,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_greedy_generator_stop_conditions.side_effect = [True, False]
@@ -2266,12 +2324,93 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
-        self.assertTrue((factual_np != cf_try).sum() > 0)
+        # No CF can be equal to the factual
+        self.assertTrue(sum([np.array_equal(cf, factual_np) for cf in cf_try]) == 0)
+
+        # Since we have 10 results with probability above 0.5 we expect 10 results
+        self.assertEqual(len(cf_try), 10)
 
         # Verify if iterations variable was incremented
-        self.assertEqual(mock_greedy_generator_stop_conditions.call_args_list[1].args[1], 2)
+        self.assertEqual(mock_greedy_generator_stop_conditions.call_args_list[1][1]['iterations'], 2)
+
+    @patch('cfnow._cf_searchers._greedy_generator_stop_conditions')
+    def test__greedy_generator_only_one_cf_out(self, mock_greedy_generator_stop_conditions):
+        # This tests if the function returns only one CF if only one score is above 0.5
+        finder_strategy = None
+        cf_data_type = None
+        factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
+                             'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
+        factual_np = factual.to_numpy()
+
+        mp1c = MagicMock()
+
+        def _mp1c_side_effect_function(x):
+            # This function returns a CF for the first detected modificaiton
+            if type(x) == pd.DataFrame:
+                equal_to_factual = (x.to_numpy() == factual_np).sum(axis=1) == factual_np.shape[0]
+            else:
+                equal_to_factual = (x == factual_np).sum(axis=1) == factual_np.shape[0]
+
+            out_result = []
+            has_cf = False
+            for row_etf in equal_to_factual:
+                if row_etf or has_cf:
+                    out_result.append(0.0)
+                else:
+                    has_cf = True
+                    out_result.append(1.0)
+
+            return np.array(out_result)
+
+        # This function finds a CF for any modification done
+        mp1c.side_effect = _mp1c_side_effect_function
+
+        feat_types = {'num1': 'num', 'num2': 'num', 'ohe1_0': 'cat', 'ohe1_1': 'cat', 'ohe1_2': 'cat',
+                      'bin1': 'cat', 'bin2': 'cat', 'ohe2_0': 'cat', 'ohe2_1': 'cat', 'ohe2_2': 'cat'}
+        it_max = 100
+        ft_change_factor = 0.5
+        ohe_list = [[2, 3, 4], [7, 8, 9]]
+        ohe_indexes = [2, 3, 4, 7, 8, 9]
+        increase_threshold = 0.0
+        tabu_list = None
+        size_tabu = 3
+        avoid_back_original = False
+        ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
+        ft_time_limit = 100
+        threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
+        verbose = False
+
+        mock_greedy_generator_stop_conditions.side_effect = [True, False]
+
+        cf_try = _greedy_generator(
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
+            verbose=verbose)
+
+        # Since we have 1 results with probability above 0.5 we expect 1 results
+        self.assertEqual(len(cf_try), 1)
 
     @patch('cfnow._cf_searchers.deque')
     @patch('cfnow._cf_searchers._generate_greedy_changes')
@@ -2302,7 +2441,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(0.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -2320,6 +2459,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_create_factual_changes.side_effect = lambda *args: _create_factual_changes(*args)
@@ -2344,6 +2485,8 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
         # Verify if momentum was increased in the last step
@@ -2380,7 +2523,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(0.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -2398,6 +2541,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_create_factual_changes.side_effect = lambda *args: _create_factual_changes(*args)
@@ -2422,6 +2567,8 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
         # Verify if momentum was increased in the last step
@@ -2464,7 +2611,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(1.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -2482,6 +2629,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_create_factual_changes.side_effect = lambda *args: _create_factual_changes(*args)
@@ -2506,6 +2655,8 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
         # Verify if momentum was increased in the last step
@@ -2541,7 +2692,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(0.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -2559,6 +2710,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_greedy_generator_stop_conditions.side_effect = [True, False]
@@ -2580,10 +2733,12 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
-        # Verify if result CF is the one with the highest probability as defined in the function above
-        self.assertListEqual(cf_try.tolist(), [-50, 10, 1, 0, 0, 1, 0, 1, 0, 0])
+        # Verify if the first result is the best one
+        self.assertListEqual(cf_try[0].tolist(), [-50, 10, 1, 0, 0, 1, 0, 1, 0, 0])
 
     @patch('cfnow._cf_searchers._generate_greedy_changes')
     @patch('cfnow._cf_searchers._greedy_generator_stop_conditions')
@@ -2610,7 +2765,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(1.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -2628,6 +2783,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_greedy_generator_stop_conditions.side_effect = [True, False]
@@ -2650,9 +2807,12 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
-        self.assertTrue((factual_np != cf_try).sum() == 0)
+        # It must return an empty list
+        self.assertTrue(len(cf_try) == 0)
 
     @patch('cfnow._cf_searchers.logging')
     @patch('cfnow._cf_searchers._greedy_generator_stop_conditions')
@@ -2679,7 +2839,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(1.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -2697,6 +2857,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = True
 
         mock_greedy_generator_stop_conditions.side_effect = [True, False]
@@ -2718,6 +2880,8 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
         mock_logging.log.assert_called()
@@ -2746,7 +2910,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(1.0)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -2764,6 +2928,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
@@ -2785,12 +2951,12 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
-        self.assertTrue((factual_np != cf_try).sum() > 0)
-
         # Verify if iterations variable was incremented
-        self.assertEqual(mock_random_generator_stop_conditions.call_args_list[1].args[1], 2)
+        self.assertEqual(mock_random_generator_stop_conditions.call_args_list[1][1]['iterations'], 2)
 
     @patch('cfnow._cf_searchers._random_generator_stop_conditions')
     def test__random_generator_random_below_threshold(self, mock_random_generator_stop_conditions):
@@ -2816,7 +2982,7 @@ class TestScriptBase(unittest.TestCase):
                 else:
                     out_result.append(0.4)
 
-            return out_result
+            return np.array(out_result)
 
         # This function finds a CF for any modification done
         mp1c.side_effect = _mp1c_side_effect_function
@@ -2834,6 +3000,8 @@ class TestScriptBase(unittest.TestCase):
         ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
         ft_time_limit = 100
         threshold_changes = 1000
+        count_cf = 1
+        cf_unique = []
         verbose = False
 
         mock_random_generator_stop_conditions.side_effect = [True, False]
@@ -2855,9 +3023,179 @@ class TestScriptBase(unittest.TestCase):
             ft_time=ft_time,
             ft_time_limit=ft_time_limit,
             threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
             verbose=verbose)
 
-        self.assertTrue((factual_np != cf_try).sum() == 0)
-
         # Verify if iterations variable was incremented
-        self.assertEqual(mock_random_generator_stop_conditions.call_args_list[1].args[1], 2)
+        self.assertEqual(mock_random_generator_stop_conditions.call_args_list[1][1]['iterations'], 2)
+
+    @patch('cfnow._cf_searchers._random_generator_stop_conditions')
+    def test__random_generator_no_cf_candidates(self, mock_random_generator_stop_conditions):
+        finder_strategy = None
+        cf_data_type = None
+        factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
+                             'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
+        factual_np = factual.to_numpy()
+
+        mp1c = MagicMock()
+
+        def _mp1c_side_effect_function(x):
+            # This function returns a CF for any set different from the factual
+            if type(x) == pd.DataFrame:
+                equal_to_factual = (x.to_numpy() == factual_np).sum(axis=1) == factual_np.shape[0]
+            else:
+                equal_to_factual = (x == factual_np).sum(axis=1) == factual_np.shape[0]
+
+            out_result = []
+            for row_etf in equal_to_factual:
+                if row_etf:
+                    out_result.append(0.0)
+                else:
+                    out_result.append(1.0)
+
+            return np.array(out_result)
+
+        # This function finds a CF for any modification done
+        mp1c.side_effect = _mp1c_side_effect_function
+
+        feat_types = {'num1': 'num', 'num2': 'num', 'ohe1_0': 'cat', 'ohe1_1': 'cat', 'ohe1_2': 'cat',
+                      'bin1': 'cat', 'bin2': 'cat', 'ohe2_0': 'cat', 'ohe2_1': 'cat', 'ohe2_2': 'cat'}
+        it_max = 100
+        ft_change_factor = 0.5
+        ohe_list = [[2, 3, 4], [7, 8, 9]]
+        ohe_indexes = [2, 3, 4, 7, 8, 9]
+        increase_threshold = None
+        tabu_list = None
+        size_tabu = 3
+        avoid_back_original = None
+        ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
+        ft_time_limit = 100
+        threshold_changes = 1000
+        count_cf = 1
+
+        cf_unique = [
+            [-50.,  10.,   1.,   0.,   0.,   0.,   0.,   0.,   1.,   0.],
+            [-50.,  10.,   1.,   0.,   0.,   1.,   1.,   0.,   1.,   0.],
+            [-75.,  10.,   1.,   0.,   0.,   1.,   0.,   0.,   1.,   0.],
+            [-25.,  10.,   1.,   0.,   0.,   1.,   0.,   0.,   1.,   0.],
+            [-50.,  15.,   1.,   0.,   0.,   1.,   0.,   0.,   1.,   0.],
+            [-50.,   5.,   1.,   0.,   0.,   1.,   0.,   0.,   1.,   0.],
+            [-50.,  10.,   1.,   0.,   0.,   1.,   0.,   0.,   1.,   0.],
+            [-50.,  10.,   0.,   1.,   0.,   1.,   0.,   0.,   1.,   0.],
+            [-50.,  10.,   0.,   0.,   1.,   1.,   0.,   0.,   1.,   0.],
+            [-50.,  10.,   1.,   0.,   0.,   1.,   0.,   1.,   0.,   0.],
+            [-50.,  10.,   1.,   0.,   0.,   1.,   0.,   0.,   1.,   0.],
+            [-50.,  10.,   1.,   0.,   0.,   1.,   0.,   0.,   0.,   1.]]
+        len_initial_cf_unique = len(cf_unique)
+
+        verbose = False
+
+        mock_random_generator_stop_conditions.side_effect = [True, False]
+
+        cf_try = _random_generator(
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
+            verbose=verbose)
+
+        # Since we skipped one iteration, we must have CF than the initial value
+        self.assertTrue(len(cf_try) > len_initial_cf_unique)
+
+    @patch('cfnow._cf_searchers._greedy_generator_stop_conditions')
+    def test__greedy_generator_no_cf_candidate(self, mock_greedy_generator_stop_conditions):
+        finder_strategy = None
+        cf_data_type = None
+        factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
+                             'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
+        factual_np = factual.to_numpy()
+
+        mp1c = MagicMock()
+
+        def _mp1c_side_effect_function(x):
+            # This function returns a CF for any set different from the factual
+            if type(x) == pd.DataFrame:
+                equal_to_factual = (x.to_numpy() == factual_np).sum(axis=1) == factual_np.shape[0]
+            else:
+                equal_to_factual = (x == factual_np).sum(axis=1) == factual_np.shape[0]
+
+            out_result = []
+            for row_etf in equal_to_factual:
+                if row_etf:
+                    out_result.append(0.0)
+                else:
+                    out_result.append(1.0)
+
+            return np.array(out_result)
+
+        # This function finds a CF for any modification done
+        mp1c.side_effect = _mp1c_side_effect_function
+
+        feat_types = {'num1': 'num', 'num2': 'num', 'ohe1_0': 'cat', 'ohe1_1': 'cat', 'ohe1_2': 'cat',
+                      'bin1': 'cat', 'bin2': 'cat', 'ohe2_0': 'cat', 'ohe2_1': 'cat', 'ohe2_2': 'cat'}
+        it_max = 100
+        ft_change_factor = 0.5
+        ohe_list = [[2, 3, 4], [7, 8, 9]]
+        ohe_indexes = [2, 3, 4, 7, 8, 9]
+        increase_threshold = 0.0
+        tabu_list = None
+        size_tabu = 3
+        avoid_back_original = False
+        ft_time = datetime.datetime(2000, 10, 10, 10, 10, 10)
+        ft_time_limit = 100
+        threshold_changes = 1000
+        count_cf = 1
+
+        cf_unique = [[-50.,  10.,   1.,   0.,   0.,   0.,   0.,   0.,   1.,   0.],
+                     [-50.,  10.,   1.,   0.,   0.,   1.,   1.,   0.,   1.,   0.],
+                     [-50.,  10.,   0.,   1.,   0.,   1.,   0.,   0.,   1.,   0.],
+                     [-50.,  10.,   0.,   0.,   1.,   1.,   0.,   0.,   1.,   0.],
+                     [-50.,  10.,   1.,   0.,   0.,   1.,   0.,   1.,   0.,   0.],
+                     [-50.,  10.,   1.,   0.,   0.,   1.,   0.,   0.,   0.,   1.],
+                     [-75.,  10.,   1.,   0.,   0.,   1.,   0.,   0.,   1.,   0.],
+                     [-50.,  15.,   1.,   0.,   0.,   1.,   0.,   0.,   1.,   0.],
+                     [-25.,  10.,   1.,   0.,   0.,   1.,   0.,   0.,   1.,   0.],
+                     [-50.,   5.,   1.,   0.,   0.,   1.,   0.,   0.,   1.,   0.]]
+
+        verbose = False
+
+        mock_greedy_generator_stop_conditions.side_effect = [True, False]
+
+        cf_try = _greedy_generator(
+            finder_strategy=finder_strategy,
+            cf_data_type=cf_data_type,
+            factual=factual,
+            mp1c=mp1c,
+            feat_types=feat_types,
+            it_max=it_max,
+            ft_change_factor=ft_change_factor,
+            ohe_list=ohe_list,
+            ohe_indexes=ohe_indexes,
+            increase_threshold=increase_threshold,
+            tabu_list=tabu_list,
+            size_tabu=size_tabu,
+            avoid_back_original=avoid_back_original,
+            ft_time=ft_time,
+            ft_time_limit=ft_time_limit,
+            threshold_changes=threshold_changes,
+            count_cf=count_cf,
+            cf_unique=cf_unique,
+            verbose=verbose)
+
+        # The iteration must be only one since we have a early stop
+        self.assertEqual(mock_greedy_generator_stop_conditions.call_args_list[1][1]['iterations'], 1)

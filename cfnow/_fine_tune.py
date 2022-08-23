@@ -5,7 +5,7 @@ keeping the CF as CF (i.e. not returning to the original class).
 import copy
 import logging
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import deque
 
 import numpy as np
@@ -54,7 +54,7 @@ def _calculate_change_factor(c_cf, changes_back_factual, feat_distances, changes
 
 
 def _generate_change_vectors(factual, factual_np, c_cf, _feat_idx_to_type, tabu_list,
-                             ohe_indexes, ohe_list, ft_threshold_distance):
+                             ohe_indexes, ohe_list, ft_threshold_distance, unique_cf):
     """
     This function takes the factual and CF and calculates:
     changes_back_factual: an array of possible modifications to return to original values
@@ -99,6 +99,11 @@ def _generate_change_vectors(factual, factual_np, c_cf, _feat_idx_to_type, tabu_
             # It's binary
             change_vector[di] = factual_np[di] - c_cf[di]
 
+        # Verify if the modification is already a found CF
+        if len(unique_cf) > 0:
+            if len(set(map(tuple, unique_cf)).intersection(set(map(tuple, [c_cf + change_vector])))) > 0:
+                continue
+
         changes_back_factual.append(change_vector)
         # Add original_index to track
         changes_back_original_idxs.append(di)
@@ -135,15 +140,16 @@ def _stop_optimization_conditions(factual_np, c_cf, limit_seconds, time_start, f
     return False
 
 
-def _fine_tuning(finder_strategy, cf_data_type, factual, cf_out, mp1c, ohe_list, ohe_indexes, increase_threshold,
-                 feat_types, ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance, time_start,
+def _fine_tuning(finder_strategy, cf_data_type, factual, cf_unique, count_cf, mp1c, ohe_list, ohe_indexes,
+                 increase_threshold, feat_types, ft_change_factor, it_max, size_tabu, ft_it_max, ft_threshold_distance,
                  limit_seconds, cf_finder, avoid_back_original, threshold_changes, verbose):
     """
 
     :param finder_strategy: The strategy used by the CF generator
     :param cf_data_type: Type of data
     :param factual: Factual point
-    :param cf_out: Counterfactual generated from factual
+    :param cf_unique: List of unique CFs
+    :param count_cf: Number of CFs
     :param mp1c: Predictor function wrapped in a predictable way
     :param ohe_list: List of OHE features
     :param ohe_indexes: List of OHE indexes
@@ -155,7 +161,6 @@ def _fine_tuning(finder_strategy, cf_data_type, factual, cf_out, mp1c, ohe_list,
     :param size_tabu: Size of Tabu list
     :param ft_it_max: Maximum number of iterations for finetune
     :param ft_threshold_distance: A threshold to identify if further modifications are (or not) effective
-    :param time_start: Initial start which algorithm started
     :param limit_seconds: Time limit for CF generation and optimization
     :param cf_finder: The function used to find CF explanations
     :param avoid_back_original: If active, does not allow features going back to their original values for
@@ -169,88 +174,123 @@ def _fine_tuning(finder_strategy, cf_data_type, factual, cf_out, mp1c, ohe_list,
 
     factual_np = factual.to_numpy()
 
-    tabu_list = deque(maxlen=size_tabu)
+    # Sort solutions by objective score
+    cf_unique_obj_score = np.array([_obj_manhattan(factual_np, cf) for cf in cf_unique])
+    cf_unique = np.array(cf_unique)[np.argsort(cf_unique_obj_score)]
 
-    # Create array to store the best solution
-    # It has: the VALID CF, the CF score and the objective function  (L1 distance)
-    best_solution = [copy.copy(cf_out), mp1c(np.array([cf_out]))[0], _obj_manhattan(factual_np, cf_out)]
+    time_threshold = limit_seconds / count_cf
 
-    # Create variable to store current solution - FIRST TIME
-    c_cf = copy.copy(cf_out)
+    for cf_out in cf_unique[:count_cf]:
 
-    # Check classification
-    c_cf_c = mp1c(np.array([c_cf]))[0]
+        time_start = datetime.now()
 
-    for i in range(ft_it_max):
+        tabu_list = deque(maxlen=size_tabu)
 
-        if _stop_optimization_conditions(factual_np, c_cf, limit_seconds, time_start, feat_types, ohe_list):
-            return best_solution
-
-        if verbose:
-            logging.log(10, f'Fine tuning: Prob = {c_cf_c}\n'
-                            f'Distance = {_obj_manhattan(factual_np, c_cf)}\n'
-                            f'Tabu list elements = {tabu_list}')
-
-        changes_back_factual, changes_back_original_idxs, feat_distances = _generate_change_vectors(
-            factual, factual_np, c_cf, _feat_idx_to_type, tabu_list, ohe_indexes, ohe_list, ft_threshold_distance)
-
-        # In some situations, the Tabu list contains all modified indexes, in this case
-        # give some inspiration to explore new regions, now, currently there's no implementation of that
-        # If list of changes is 0, return result
-        if len(changes_back_factual) == 0:
-            warnings.warn('Change list is empty')
-            return best_solution
-
-        change_factor_feat = _calculate_change_factor(c_cf, changes_back_factual, feat_distances,
-                                                      changes_back_original_idxs,  mp1c, c_cf_c)
-
-        # Select the change based on the lowest change factor
-        change_idx = np.argmin(change_factor_feat)
-        change_original_idx = changes_back_original_idxs[change_idx]
-
-        mod_change = _create_mod_change(changes_back_factual, change_idx, change_original_idx,
-                                        ft_change_factor, _feat_idx_to_type)
-
-        # Make modification
-        c_cf = c_cf + mod_change
+        # Create variable to store current solution - FIRST TIME
+        c_cf = copy.copy(cf_out)
 
         # Check classification
         c_cf_c = mp1c(np.array([c_cf]))[0]
 
-        # Check if still a cf
-        if c_cf_c > 0.5:
-            # Calculate objective function
-            c_cf_o = _obj_manhattan(factual_np, c_cf)
-            # Check if it's a better solution
-            if c_cf_o < best_solution[2]:
-                best_solution = [copy.copy(c_cf), c_cf_c, c_cf_o]
-        else:
-            # Not a CF
-            # Add index to Tabu list
-            # If numerical or binary, just add the single index
-            # However, if it's OHE add all related indexes
-            if change_original_idx in ohe_indexes:
-                tabu_list.append(_get_ohe_list(change_original_idx, ohe_list))
-            else:
-                tabu_list.append([change_original_idx])
+        for i in range(ft_it_max):
 
-            # Return to CF, however, considering the Tabu list
-            c_cf = cf_finder(finder_strategy=finder_strategy,
-                             cf_data_type=cf_data_type,
-                             factual=pd.DataFrame([c_cf], columns=factual.index).iloc[0],
-                             mp1c=mp1c,
-                             feat_types=feat_types,
-                             it_max=it_max,
-                             ft_change_factor=ft_change_factor,
-                             ohe_list=ohe_list,
-                             ohe_indexes=ohe_indexes,
-                             tabu_list=tabu_list,
-                             size_tabu=size_tabu,
-                             increase_threshold=increase_threshold,
-                             avoid_back_original=avoid_back_original,
-                             ft_time=time_start,
-                             ft_time_limit=limit_seconds,
-                             threshold_changes=threshold_changes,
-                             verbose=verbose)
+            if _stop_optimization_conditions(factual_np, c_cf, time_threshold, time_start, feat_types, ohe_list):
+                break
 
-    return best_solution
+            if verbose:
+                logging.log(10, f'Fine tuning: Prob = {c_cf_c}\n'
+                                f'Distance = {_obj_manhattan(factual_np, c_cf)}\n'
+                                f'Tabu list elements = {tabu_list}')
+
+            changes_back_factual, changes_back_original_idxs, feat_distances = _generate_change_vectors(
+                factual, factual_np, c_cf, _feat_idx_to_type, tabu_list, ohe_indexes, ohe_list,
+                ft_threshold_distance, cf_unique)
+
+            # In some situations, the Tabu list contains all modified indexes, in this case
+            # give some inspiration to explore new regions, now, currently there's no implementation of that
+            # If list of changes is 0, return result
+            if len(changes_back_factual) == 0:
+                warnings.warn('Change list is empty')
+                continue
+
+            change_factor_feat = _calculate_change_factor(c_cf, changes_back_factual, feat_distances,
+                                                          changes_back_original_idxs,  mp1c, c_cf_c)
+
+            # Select the change based on the lowest change factor
+            change_idx = np.argmin(change_factor_feat)
+            change_original_idx = changes_back_original_idxs[change_idx]
+
+            # Create all modifications for the CF
+            all_modifications = list(map(
+                lambda x: _create_mod_change(changes_back_factual, x[0], x[1], ft_change_factor, _feat_idx_to_type),
+                [*enumerate(changes_back_original_idxs)]))
+
+            all_c_cf = np.array(all_modifications) + c_cf
+
+            all_c_cf_prob = mp1c(all_c_cf)
+
+            cf_candidates = all_c_cf[all_c_cf_prob >= 0.5, :]
+            if len(cf_candidates) > 0:
+                # For all generated CF, verify if they are unique and if they are, add them to the list
+                cf_candidates_unique = set(map(tuple, cf_candidates)).difference(set(map(tuple, cf_unique)))
+                cf_unique = np.concatenate([cf_unique, np.array(list(cf_candidates_unique))])
+
+            # Get the best modification
+            # Make modification
+            c_cf = all_c_cf[change_idx]
+            # Check classification
+            c_cf_c = all_c_cf_prob[change_idx]
+
+            # Check if still a cf
+            if c_cf_c < 0.5:
+                # Not a CF
+                # Add index to Tabu list
+                # If numerical or binary, just add the single index
+                # However, if it's OHE add all related indexes
+                if change_original_idx in ohe_indexes:
+                    tabu_list.append(_get_ohe_list(change_original_idx, ohe_list))
+                else:
+                    tabu_list.append([change_original_idx])
+
+                # Return to CF, however, considering the Tabu list
+                new_c_cf = cf_finder(
+                    finder_strategy=finder_strategy,
+                    cf_data_type=cf_data_type,
+                    factual=pd.DataFrame([c_cf], columns=factual.index).iloc[0],
+                    mp1c=mp1c,
+                    feat_types=feat_types,
+                    it_max=it_max,
+                    ft_change_factor=ft_change_factor,
+                    ohe_list=ohe_list,
+                    ohe_indexes=ohe_indexes,
+                    tabu_list=tabu_list,
+                    size_tabu=size_tabu,
+                    increase_threshold=increase_threshold,
+                    avoid_back_original=avoid_back_original,
+                    ft_time=time_start,
+                    ft_time_limit=limit_seconds,
+                    threshold_changes=threshold_changes,
+                    count_cf=len(cf_unique) + 1,  # This guarantee at least one new CF
+                    cf_unique=list(cf_unique),
+                    verbose=verbose)
+                # Get the best new CF, this will be the one to be improved
+                new_cf = np.array(list(set(map(tuple, new_c_cf)).difference(set(map(tuple, cf_unique)))))
+                if len(new_cf) > 0:
+                    # Calculate the objective function for all new CF
+                    cf_unique_obj_score = np.array([_obj_manhattan(factual_np, cf) for cf in new_cf])
+                    # Assign the new CF the best solution
+                    best_cf = copy.deepcopy(new_cf[np.argsort(cf_unique_obj_score)[0]])
+                    # Add the new CFs to the list of CFs
+                    cf_unique = list(np.concatenate([cf_unique, new_cf]))
+                else:
+                    best_cf = copy.deepcopy(c_cf)
+
+                c_cf = best_cf
+
+    # Calculate the objective function for all new CF
+    cf_unique_obj_score = np.array([_obj_manhattan(factual_np, cf) for cf in cf_unique])
+    # Sort the CFs by the objective function
+    cf_unique = np.array(cf_unique)[np.argsort(cf_unique_obj_score)]
+    cf_unique_obj_score = cf_unique_obj_score[np.argsort(cf_unique_obj_score)]
+
+    return cf_unique, cf_unique_obj_score

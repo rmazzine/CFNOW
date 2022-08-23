@@ -5,6 +5,7 @@ import copy
 import logging
 import warnings
 from datetime import datetime
+from typing import Literal
 
 import pandas as pd
 import numpy as np
@@ -24,22 +25,26 @@ class _CFBaseResponse:
     """
     Class that defines the base object to the CFNOW return
     """
-    def __init__(self, factual, factual_vector, cf_vector, cf_not_optimized_vector, time_cf, time_cf_not_optimized):
+    def __init__(self, factual, factual_vector, cf_vectors, cf_not_optimized_vectors, obj_scores,
+                 time_cf, time_cf_not_optimized):
         """
         This receives the base parameters that all CF should have
         :param factual: The factual instance provided by the user
         :param factual_vector: The vector representation of the factual instance
-        :param cf_vector: The vector representation of the (optimized) CF instance
-        :param cf_not_optimized_vector: The vector representation of the (not optimized) CF instance
+        :param cf_vectors: Vectors representation of the CFs
+        :param cf_not_optimized_vectors: Vectors representation (not optimized) of the CFs
+        :param obj_scores: The objective scores of the CFs
         :param time_cf: Time spent to generate the optimized CF
         :param time_cf_not_optimized: Time spent to generate the not optimized CF
         """
         self.factual = factual
         self.factual_vector = factual_vector
-        self.cf_vector = cf_vector
-        self.cf_not_optimized_vector = cf_not_optimized_vector
+        self.cf_vectors = cf_vectors
+        self.cf_not_optimized_vectors = cf_not_optimized_vectors
         self.time_cf = time_cf
         self.time_cf_not_optimized = time_cf_not_optimized
+        self.total_cf = len(cf_vectors)
+        self.cf_obj_scores = obj_scores
 
 
 class _CFTabular(_CFBaseResponse):
@@ -50,8 +55,8 @@ class _CFTabular(_CFBaseResponse):
 
         super(_CFTabular, self).__init__(**kwargs)
 
-        self.cf = self.cf_vector
-        self.cf_not_optimized = self.cf_not_optimized_vector
+        self.cfs = self.cf_vectors
+        self.cfs_not_optimized = self.cf_not_optimized_vectors
 
 
 class _CFImage(_CFBaseResponse):
@@ -74,24 +79,31 @@ class _CFImage(_CFBaseResponse):
         green_replace = np.zeros(self.factual.shape)
         green_replace[:, :, 1] = 1
 
-        if self.cf_vector is not None:
-            self.cf = _seg_to_img([self.cf_vector], self.factual, segments, replace_img)[0]
-            self.cf_segments = np.where(self.cf_vector == 0)[0]
-            self.cf_image_highlight = _seg_to_img([self.cf_vector], self.factual, segments, green_replace)[0]
-        else:
-            self.cf = None
-            self.cf_segments = np.array([])
-            self.cf_image_highlight = None
+        cfs = []
+        cfs_segments = []
+        cfs_image_highlight = []
 
-        if self.cf_not_optimized_vector is not None:
-            self.cf_not_optimized = _seg_to_img([self.cf_not_optimized_vector], self.factual, segments, replace_img)[0]
-            self.cf_not_optimized_segments = np.where(self.cf_not_optimized_vector == 0)[0]
-            self.cf_not_optimized_image_highlight = _seg_to_img([self.cf_not_optimized_vector], self.factual,
-                                                                segments, green_replace)[0]
-        else:
-            self.cf_not_optimized = None
-            self.cf_not_optimized_segments = np.array([])
-            self.cf_not_optimized_image_highlight = None
+        cfs_not_optimized = []
+        cfs_not_optimized_segments = []
+        cfs_not_optimized_image_highlight = []
+
+        for cf_vector in self.cf_vectors:
+            cfs.append(_seg_to_img([cf_vector], self.factual, segments, replace_img)[0])
+            cfs_segments.append(np.where(cf_vector == 0)[0])
+            cfs_image_highlight.append(_seg_to_img([cf_vector], self.factual, segments, green_replace)[0])
+
+        for cf_not_optimized_vector in self.cf_not_optimized_vectors:
+            cfs_not_optimized.append(_seg_to_img([cf_not_optimized_vector], self.factual, segments, replace_img)[0])
+            cfs_not_optimized_segments.append(np.where(cf_not_optimized_vector == 0)[0])
+            cfs_not_optimized_image_highlight.append(
+                _seg_to_img([cf_not_optimized_vector], self.factual, segments, green_replace)[0])
+
+        self.cfs = cfs
+        self.cfs_segments = cfs_segments
+        self.cfs_image_highlight = cfs_image_highlight
+        self.cfs_not_optimized = cfs_not_optimized
+        self.cfs_not_optimized_segments = cfs_not_optimized_segments
+        self.cfs_not_optimized_image_highlight = cfs_not_optimized_image_highlight
 
 
 class _CFText(_CFBaseResponse):
@@ -110,28 +122,36 @@ class _CFText(_CFBaseResponse):
         # Remove entries that are not considered (which does not have any word)
         text_replace_valid = np.array([t for t in text_replace if len(t) > 0])
 
-        if self.cf_vector is not None:
-            self.cf = converter([self.cf_vector])[0]
-            self.cf_html_highlight = converter([self.cf_vector], True)[0]
-            replaced_feats_idx = [int(wi / 2) for wi in np.where(self.factual_vector != self.cf_vector)[0][::2]]
-            self.cf_replaced_words = [w[0] for w in text_replace_valid[replaced_feats_idx]]
-        else:
-            self.cf = None
-            self.cf_html_highlight = None
-            self.cf_replaced_words = []
-
-        if self.cf_not_optimized_vector is not None:
-            self.cf_not_optimized = converter([self.cf_not_optimized_vector])[0]
-            self.cf_html_not_optimized = converter([self.cf_not_optimized_vector], True)[0]
-            replaced_not_optimized_feats_idx = [int(wi / 2) for wi in
-                                                np.where(self.factual_vector != self.cf_not_optimized_vector)[0][::2]]
-            self.cf_not_optimized_replaced_words = [w[0] for w in text_replace_valid[replaced_not_optimized_feats_idx]]
-        else:
-            self.cf_not_optimized = None
-            self.cf_html_not_optimized = None
-            self.cf_not_optimized_replaced_words = []
-
         self.adjusted_factual = converter([self.factual_vector])[0]
+
+        cfs = []
+        cfs_html_highlight = []
+        cfs_replaced_words = []
+
+        cfs_not_optimized = []
+        cfs_not_optimized_html_highlight = []
+        cfs_not_optimized_replaced_words = []
+
+        for cf_vector in self.cf_vectors:
+            cfs.append(converter([cf_vector])[0])
+            cfs_html_highlight.append(converter([cf_vector], True)[0])
+            replaced_feats_idx = [int(wi / 2) for wi in np.where(self.factual_vector != cf_vector)[0][::2]]
+            cfs_replaced_words.append([w[0] for w in text_replace_valid[replaced_feats_idx]])
+
+        for cf_not_optimized_vector in self.cf_not_optimized_vectors:
+            cfs_not_optimized.append(converter([cf_not_optimized_vector])[0])
+            cfs_not_optimized_html_highlight.append(converter([cf_not_optimized_vector], True)[0])
+            replaced_not_optimized_feats_idx = [int(wi / 2) for wi in
+                                                np.where(self.factual_vector != cf_not_optimized_vector)[0][::2]]
+            cfs_not_optimized_replaced_words.append(
+                [w[0] for w in text_replace_valid[replaced_not_optimized_feats_idx]])
+
+        self.cfs = cfs
+        self.cfs_html_highlight = cfs_html_highlight
+        self.cfs_replaced_words = cfs_replaced_words
+        self.cfs_not_optimized = cfs_not_optimized
+        self.cfs_not_optimized_html_highlight = cfs_not_optimized_html_highlight
+        self.cfs_not_optimized_replaced_words = cfs_not_optimized_replaced_words
 
 
 def _define_tabu_size(size_tabu, factual_vector):
@@ -158,8 +178,9 @@ def _define_tabu_size(size_tabu, factual_vector):
 def find_tabular(
         factual: pd.Series,
         model_predict_proba,
+        count_cf: int = 1,
         feat_types: dict = None,
-        cf_strategy: str = 'greedy',
+        cf_strategy: Literal['greedy', 'random', 'random-sequential'] = 'greedy',
         increase_threshold: int = 0,
         it_max: int = 1000,
         limit_seconds: int = 120,
@@ -178,11 +199,14 @@ def find_tabular(
     :param model_predict_proba: Model's function which generates a class probability output, it must be able to accept
     a Pandas DataFrame and Numpy array as input
     :type model_predict_proba: object
+    :param count_cf: Number of counterfactual explanations to be returned
+    :type count_cf: int
     :param feat_types: (optional) A dictionary with {col_name: col_type}, where "col_name" is the name of the column
     and "col_type" can be "num" to indicate numerical continuous features and "cat" to indicate
     categorical Default: (all num)
     :type feat_types: dict
-    :param cf_strategy: (optional) Strategy to find CF, can be "greedy" or "random". Default='greedy'
+    :param cf_strategy: (optional) Strategy to find CF, can be "greedy", "random" or
+    "random-sequential". Default='greedy'
     :type cf_strategy: str
     :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
     if the improvement is below that, search will stop. Default=0
@@ -225,26 +249,22 @@ def find_tabular(
 
     # Defines the CF finding strategy
     cf_finder = None
+    finder_strategy = None
     if cf_strategy == 'random':
         cf_finder = _random_generator
-        finder_strategy = None
     elif cf_strategy == 'random-sequential':
         cf_finder = _random_generator
         finder_strategy = 'sequential'
     elif cf_strategy == 'greedy':
         cf_finder = _greedy_generator
-        finder_strategy = None
     if cf_finder is None:
-        raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
+        raise AttributeError(f'cf_strategy must be "greedy", "random" or "random-sequential" and not {cf_strategy}')
 
     # If feature types were not informed, all columns will be considered numerical
     if feat_types is None:
         feat_types = {c: 'num' for c in factual.index}
 
     size_tabu = _define_tabu_size(size_tabu, factual)
-
-    # Timer now
-    time_start = datetime.now()
 
     # Make checks
     _check_factual(factual)
@@ -259,78 +279,86 @@ def find_tabular(
 
     # Generate OHE parameters if it has OHE variables
     ohe_list, ohe_indexes = _get_ohe_params(factual, has_ohe)
+
+    # Timer not optimized CF
+    time_start = datetime.now()
+
     # Generate CF using a CF finder
-    cf_out = cf_finder(finder_strategy=finder_strategy,
-                       cf_data_type=cf_data_type,
-                       factual=factual,
-                       mp1c=mp1c,
-                       feat_types=feat_types,
-                       it_max=it_max,
-                       ft_change_factor=ft_change_factor,
-                       ohe_list=ohe_list,
-                       ohe_indexes=ohe_indexes,
-                       increase_threshold=increase_threshold,
-                       tabu_list=None,
-                       size_tabu=size_tabu,
-                       avoid_back_original=avoid_back_original,
-                       ft_time=None,
-                       ft_time_limit=None,
-                       threshold_changes=threshold_changes,
-                       verbose=verbose)
+    cf_unique = cf_finder(
+        finder_strategy=finder_strategy,
+        cf_data_type=cf_data_type,
+        factual=factual,
+        mp1c=mp1c,
+        feat_types=feat_types,
+        it_max=it_max,
+        ft_change_factor=ft_change_factor,
+        ohe_list=ohe_list,
+        ohe_indexes=ohe_indexes,
+        increase_threshold=increase_threshold,
+        tabu_list=None,
+        size_tabu=size_tabu,
+        avoid_back_original=avoid_back_original,
+        ft_time=None,
+        ft_time_limit=None,
+        threshold_changes=threshold_changes,
+        count_cf=count_cf,
+        cf_unique=[],
+        verbose=verbose)
 
     # Calculate time to generate the not optimized CF
     time_cf_not_optimized = datetime.now() - time_start
 
-    if mp1c(np.array([cf_out]))[0] < 0.5:
+    if len(cf_unique) == 0:
         logging.log(30, 'No CF found.')
         return _CFTabular(
             factual=factual,
             factual_vector=factual,
-            cf_vector=None,
-            cf_not_optimized_vector=None,
-            time_cf=None,
+            cf_vectors=[],
+            cf_not_optimized_vectors=[],
+            obj_scores=[],
+            time_cf=time_cf_not_optimized.total_seconds(),
             time_cf_not_optimized=time_cf_not_optimized.total_seconds())
 
     # Fine tune the counterfactual
-    cf_out_ft = _fine_tuning(finder_strategy=finder_strategy,
-                             cf_data_type=cf_data_type,
-                             factual=factual,
-                             cf_out=cf_out,
-                             mp1c=mp1c,
-                             ohe_list=ohe_list,
-                             ohe_indexes=ohe_indexes,
-                             increase_threshold=increase_threshold,
-                             feat_types=feat_types,
-                             ft_change_factor=ft_change_factor,
-                             it_max=it_max,
-                             size_tabu=size_tabu,
-                             ft_it_max=ft_it_max,
-                             ft_threshold_distance=ft_threshold_distance,
-                             time_start=time_start,
-                             limit_seconds=limit_seconds,
-                             cf_finder=cf_finder,
-                             avoid_back_original=avoid_back_original,
-                             threshold_changes=threshold_changes,
-                             verbose=verbose)
+    cf_unique_opt = _fine_tuning(
+        finder_strategy=finder_strategy,
+        cf_data_type=cf_data_type,
+        factual=factual,
+        cf_unique=cf_unique,
+        count_cf=count_cf,
+        mp1c=mp1c,
+        ohe_list=ohe_list,
+        ohe_indexes=ohe_indexes,
+        increase_threshold=increase_threshold,
+        feat_types=feat_types,
+        ft_change_factor=ft_change_factor,
+        it_max=it_max,
+        size_tabu=size_tabu,
+        ft_it_max=ft_it_max,
+        ft_threshold_distance=ft_threshold_distance,
+        limit_seconds=limit_seconds,
+        cf_finder=cf_finder,
+        avoid_back_original=avoid_back_original,
+        threshold_changes=threshold_changes,
+        verbose=verbose)
 
     # Total time to generate the optimized CF
     time_cf = datetime.now() - time_start
 
-    # Create response object
-    response_obj = _CFTabular(
-        factual=factual,
-        factual_vector=factual,
-        cf_vector=cf_out_ft[0],
-        cf_not_optimized_vector=cf_out,
-        time_cf=time_cf.total_seconds(),
-        time_cf_not_optimized=time_cf_not_optimized.total_seconds())
-
-    return response_obj
+    return _CFTabular(
+            factual=factual,
+            factual_vector=factual,
+            cf_vectors=cf_unique_opt[0],
+            cf_not_optimized_vectors=cf_unique,
+            obj_scores=cf_unique_opt[1],
+            time_cf=time_cf.total_seconds(),
+            time_cf_not_optimized=time_cf_not_optimized.total_seconds())
 
 
 def find_image(
         img: np.ndarray,
         model_predict,
+        count_cf: int = 1,
         segmentation: str = 'quickshift',
         params_segmentation: dict = None,
         replace_mode: str = 'blur',
@@ -352,6 +380,8 @@ def find_image(
     :type img: np.ndarray
     :param model_predict: Model's function which generates a class probability output
     :type model_predict: object
+    :param count_cf: Number of counterfactual explanations to be returned
+    :type count_cf: int
     :param segmentation: (optional) Type of segmentation to used in image. Can be: 'quickshift'. Default='quickshift'
     :type segmentation: str
     :param params_segmentation: (optional) Parameters passed to the segmentation algorithm.
@@ -403,7 +433,8 @@ def find_image(
 
     # Some default parameters depend on the select CF finding strategy
     cf_finder = None
-    if cf_strategy == 'random':
+    finder_strategy = None
+    if cf_strategy == 'random' or cf_strategy == 'random-sequential':
         cf_finder = _random_generator
         if it_max is None:
             it_max = 100
@@ -411,6 +442,8 @@ def find_image(
             ft_it_max = 100
         if avoid_back_original is None:
             avoid_back_original = False
+        if cf_strategy == 'random-sequential':
+            finder_strategy = 'sequential'
     elif cf_strategy == 'greedy':
         cf_finder = _greedy_generator
         if it_max is None:
@@ -454,9 +487,6 @@ def find_image(
 
     size_tabu = _define_tabu_size(size_tabu, factual)
 
-    # Timer now
-    time_start = datetime.now()
-
     # TODO: Make checks
 
     # Define all features as binary
@@ -474,62 +504,71 @@ def find_image(
     else:
         raise AttributeError(f'img_cf_strategy must be "nonspecific" or "second_best" and not {img_cf_strategy}')
 
+    # Timer now
+    time_start = datetime.now()
+
     # Generate CF using a CF finder
-    cf_out = cf_finder(cf_data_type=cf_data_type,
-                       factual=factual,
-                       mp1c=mimns,
-                       feat_types=feat_types,
-                       it_max=it_max,
-                       ft_change_factor=ft_change_factor,
-                       ohe_list=[],
-                       ohe_indexes=[],
-                       increase_threshold=increase_threshold,
-                       tabu_list=None,
-                       avoid_back_original=avoid_back_original,
-                       size_tabu=size_tabu,
-                       ft_time=None,
-                       ft_time_limit=None,
-                       threshold_changes=threshold_changes,
-                       verbose=verbose)
+    cf_unique = cf_finder(
+        finder_strategy=finder_strategy,
+        cf_data_type=cf_data_type,
+        factual=factual,
+        mp1c=mimns,
+        feat_types=feat_types,
+        it_max=it_max,
+        ft_change_factor=ft_change_factor,
+        ohe_list=[],
+        ohe_indexes=[],
+        increase_threshold=increase_threshold,
+        tabu_list=None,
+        avoid_back_original=avoid_back_original,
+        size_tabu=size_tabu,
+        ft_time=None,
+        ft_time_limit=None,
+        threshold_changes=threshold_changes,
+        count_cf=count_cf,
+        cf_unique=[],
+        verbose=verbose)
 
     # Calculate time to generate the not optimized CF
     time_cf_not_optimized = datetime.now() - time_start
 
-    if mimns(np.array([cf_out]))[0] < 0.5:
+    if len(cf_unique) == 0:
         logging.log(30, 'No CF found.')
         return _CFImage(
             factual=img,
             factual_vector=factual,
-            cf_vector=None,
-            cf_not_optimized_vector=None,
-            time_cf=None,
+            cf_vectors=[],
+            cf_not_optimized_vectors=[],
+            obj_scores=[],
+            time_cf=time_cf_not_optimized.total_seconds(),
             time_cf_not_optimized=time_cf_not_optimized.total_seconds(),
 
             _seg_to_img=_seg_to_img,
             segments=segments,
-            replace_img=replace_img
-        )
+            replace_img=replace_img)
 
     # Fine tune the counterfactual
-    cf_out_ft = _fine_tuning(cf_data_type=cf_data_type,
-                             factual=factual,
-                             cf_out=cf_out,
-                             mp1c=mimns,
-                             ohe_list=[],
-                             ohe_indexes=[],
-                             increase_threshold=increase_threshold,
-                             feat_types=feat_types,
-                             ft_change_factor=ft_change_factor,
-                             it_max=it_max,
-                             size_tabu=size_tabu,
-                             ft_it_max=ft_it_max,
-                             ft_threshold_distance=ft_threshold_distance,
-                             time_start=time_start,
-                             limit_seconds=limit_seconds,
-                             cf_finder=cf_finder,
-                             avoid_back_original=avoid_back_original,
-                             threshold_changes=threshold_changes,
-                             verbose=verbose)
+    cf_unique_opt = _fine_tuning(
+        finder_strategy=finder_strategy,
+        cf_data_type=cf_data_type,
+        factual=factual,
+        cf_unique=cf_unique,
+        count_cf=count_cf,
+        mp1c=mimns,
+        ohe_list=[],
+        ohe_indexes=[],
+        increase_threshold=increase_threshold,
+        feat_types=feat_types,
+        ft_change_factor=ft_change_factor,
+        it_max=it_max,
+        size_tabu=size_tabu,
+        ft_it_max=ft_it_max,
+        ft_threshold_distance=ft_threshold_distance,
+        limit_seconds=limit_seconds,
+        cf_finder=cf_finder,
+        avoid_back_original=avoid_back_original,
+        threshold_changes=threshold_changes,
+        verbose=verbose)
 
     # Total time to generate the optimized CF
     time_cf = datetime.now() - time_start
@@ -538,8 +577,9 @@ def find_image(
     response_obj = _CFImage(
         factual=img,
         factual_vector=factual,
-        cf_vector=cf_out_ft[0],
-        cf_not_optimized_vector=cf_out,
+        cf_vectors=cf_unique_opt[0],
+        cf_not_optimized_vectors=cf_unique,
+        obj_scores=cf_unique_opt[1],
         time_cf=time_cf.total_seconds(),
         time_cf_not_optimized=time_cf_not_optimized.total_seconds(),
 
@@ -554,6 +594,7 @@ def find_image(
 def find_text(
         text_input: str,
         textual_classifier,
+        count_cf: int = 1,
         word_replace_strategy: str = 'remove',
         cf_strategy: str = 'greedy',
         increase_threshold: int = -1,
@@ -572,6 +613,8 @@ def find_text(
     :type text_input: str
     :param textual_classifier: Model's function which generates a class probability output
     :type textual_classifier: object
+    :param count_cf: Number of counterfactual explanations to be returned
+    :type count_cf: int
     :param word_replace_strategy: (optional) Strategy to make text modifications. Can be 'remove', which simply
     removes the word or 'antonyms' which replace words by their respective antonyms. Default='remove'
     :type word_replace_strategy: str
@@ -612,15 +655,16 @@ def find_text(
 
     # Select CF finding strategy
     cf_finder = None
+    finder_strategy = None
     if cf_strategy == 'random':
         cf_finder = _random_generator
+    elif cf_strategy == 'random-sequential':
+        cf_finder = _random_generator
+        finder_strategy = 'sequential'
     elif cf_strategy == 'greedy':
         cf_finder = _greedy_generator
     if cf_finder is None:
         raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
-
-    # Timer now
-    time_start = datetime.now()
 
     # TODO: Make checkers
 
@@ -671,36 +715,44 @@ def find_text(
 
     size_tabu = _define_tabu_size(size_tabu, factual.iloc[0])
 
+    # Timer now
+    time_start = datetime.now()
+
     # Generate CF using a CF finder
-    cf_out = cf_finder(cf_data_type=cf_data_type,
-                       factual=factual.iloc[0],
-                       mp1c=mts,
-                       feat_types=feat_types,
-                       it_max=it_max,
-                       ft_change_factor=ft_change_factor,
-                       ohe_list=ohe_list,
-                       ohe_indexes=ohe_indexes,
-                       increase_threshold=increase_threshold,
-                       tabu_list=None,
-                       size_tabu=size_tabu,
-                       avoid_back_original=avoid_back_original,
-                       ft_time=None,
-                       ft_time_limit=None,
-                       threshold_changes=threshold_changes,
-                       verbose=verbose)
+    cf_unique = cf_finder(
+        finder_strategy=finder_strategy,
+        cf_data_type=cf_data_type,
+        factual=factual.iloc[0],
+        mp1c=mts,
+        feat_types=feat_types,
+        it_max=it_max,
+        ft_change_factor=ft_change_factor,
+        ohe_list=ohe_list,
+        ohe_indexes=ohe_indexes,
+        increase_threshold=increase_threshold,
+        tabu_list=None,
+        size_tabu=size_tabu,
+        avoid_back_original=avoid_back_original,
+        ft_time=None,
+        ft_time_limit=None,
+        threshold_changes=threshold_changes,
+        count_cf=count_cf,
+        cf_unique=[],
+        verbose=verbose)
 
     # Calculate time to generate the not optimized CF
     time_cf_not_optimized = datetime.now() - time_start
 
     # If no CF was found, return original text, since this may be common, it will not raise errors
-    if mts(np.array([cf_out]))[0] < 0.5:
+    if len(cf_unique) == 0:
         logging.log(30, 'No CF found.')
         return _CFText(
             factual=text_input,
             factual_vector=factual.to_numpy()[0],
-            cf_vector=None,
-            cf_not_optimized_vector=None,
-            time_cf=None,
+            cf_vectors=[],
+            cf_not_optimized_vectors=[],
+            obj_scores=[],
+            time_cf=time_cf_not_optimized.total_seconds(),
             time_cf_not_optimized=time_cf_not_optimized.total_seconds(),
 
             converter=converter,
@@ -708,25 +760,27 @@ def find_text(
         )
 
     # Fine tune the counterfactual
-    cf_out_ft = _fine_tuning(cf_data_type=cf_data_type,
-                             factual=factual.iloc[0],
-                             cf_out=cf_out,
-                             mp1c=mts,
-                             ohe_list=ohe_list,
-                             ohe_indexes=ohe_indexes,
-                             increase_threshold=increase_threshold,
-                             feat_types=feat_types,
-                             ft_change_factor=ft_change_factor,
-                             it_max=it_max,
-                             size_tabu=size_tabu,
-                             ft_it_max=ft_it_max,
-                             ft_threshold_distance=ft_threshold_distance,
-                             time_start=time_start,
-                             limit_seconds=limit_seconds,
-                             cf_finder=cf_finder,
-                             avoid_back_original=avoid_back_original,
-                             threshold_changes=threshold_changes,
-                             verbose=verbose)
+    cf_unique_opt = _fine_tuning(
+        finder_strategy=finder_strategy,
+        cf_data_type=cf_data_type,
+        factual=factual.iloc[0],
+        cf_unique=cf_unique,
+        count_cf=count_cf,
+        mp1c=mts,
+        ohe_list=ohe_list,
+        ohe_indexes=ohe_indexes,
+        increase_threshold=increase_threshold,
+        feat_types=feat_types,
+        ft_change_factor=ft_change_factor,
+        it_max=it_max,
+        size_tabu=size_tabu,
+        ft_it_max=ft_it_max,
+        ft_threshold_distance=ft_threshold_distance,
+        limit_seconds=limit_seconds,
+        cf_finder=cf_finder,
+        avoid_back_original=avoid_back_original,
+        threshold_changes=threshold_changes,
+        verbose=verbose)
 
     # Total time to generate the optimized CF
     time_cf = datetime.now() - time_start
@@ -735,8 +789,9 @@ def find_text(
     response_obj = _CFText(
         factual=text_input,
         factual_vector=factual.to_numpy()[0],
-        cf_vector=cf_out_ft[0],
-        cf_not_optimized_vector=cf_out,
+        cf_vectors=cf_unique_opt[0],
+        cf_not_optimized_vectors=cf_unique,
+        obj_scores=cf_unique_opt[1],
         time_cf=time_cf.total_seconds(),
         time_cf_not_optimized=time_cf_not_optimized.total_seconds(),
 
