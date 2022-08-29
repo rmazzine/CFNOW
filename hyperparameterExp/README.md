@@ -26,6 +26,11 @@ export GPU_MEMORY=-1 # (optional) Memory to be used by the GPU. If -1, then all 
 python main.py
 ```
 
+3 - After acquiring all results, the script ``hyperparameterExp/analysis.py`` prints the best parameters for each data type
+```shell
+python analysis.py
+```
+
 ## This experiment uses the following parameters
 ### tabular
 * DATA_TYPE: tabular
@@ -62,3 +67,77 @@ docker run -t --gpus all -e DATA_TYPE=tabular -e NUM_PARTITIONS=1 -e PARTITION_I
 docker run -t --gpus all -e DATA_TYPE=image -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=100 -e NUM_PROCESS=16 -e GPU_MEMORY=-1 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results hyperparameterexp;
 docker run -t --gpus all -e DATA_TYPE=text -e NUM_PARTITIONS=1 -e PARTITION_ID=1 -e NUM_SAMPLE_PARAMETERS=100 -e NUM_PROCESS=16 -e GPU_MEMORY=-1 -v $(pwd)/hyperparameterExp/DockerExpData/:/CFNOW/hyperparameterExp/Results hyperparameterexp
 ```
+
+## Experiment results
+The best parameters for each data type are:
+### Tabular Greedy
+```json
+{
+  "increase_threshold": 1e-05,
+  "limit_seconds": 120,
+  "ft_change_factor": 0.1, 
+  "ft_it_max": 1000,
+  "size_tabu": 5, 
+  "ft_threshold_distance": 1e-05,
+  "avoid_back_original": false
+}
+
+```
+### Tabular Random
+```json
+{
+  "increase_threshold": 1e-05,
+  "limit_seconds": 120,
+  "ft_change_factor": 0.1,
+  "ft_it_max": 5000,
+  "size_tabu": 0.2,
+  "ft_threshold_distance": 1e-05,
+  "threshold_changes": 100
+}
+```
+### Image Greedy
+```json
+{
+  "increase_threshold": -1.0,
+  "limit_seconds": 120, 
+  "ft_it_max": 2000,
+  "size_tabu": 5,
+  "ft_threshold_distance": -1.0, 
+  "avoid_back_original": false}
+```
+### Image Random
+```json
+{
+  "increase_threshold": -1.0, 
+  "limit_seconds": 120,
+  "ft_it_max": 100,
+  "size_tabu": 0.1,
+  "ft_threshold_distance": 1e-05,
+  "threshold_changes": 100
+}
+```
+### Text Greedy
+```json
+{
+  "increase_threshold": -1.0,
+  "limit_seconds": 120,
+  "ft_it_max": 1000,
+  "size_tabu": 0.5,
+  "ft_threshold_distance": -1.0,
+  "avoid_back_original": true
+}
+```
+### Text Random
+```json
+{
+  "increase_threshold": 1e-05,
+  "limit_seconds": 120,
+  "ft_it_max": 500,
+  "size_tabu": 0.5,
+  "ft_threshold_distance": -1.0,
+  "threshold_changes": 100
+}
+```
+
+### Experimental data
+The experimental data is available in the following [link](https://objectstorage.us-ashburn-1.oraclecloud.com/n/idaknh7ztshz/b/CFNOW_Data/o/CFNOW_Hyperparameter_Results) 

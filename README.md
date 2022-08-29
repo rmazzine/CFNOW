@@ -1,5 +1,8 @@
 # CFNOW
 
+# Hyperparameter Experiment
+## More detail on how to run this experiment can be found in the [README](hyperparameterExp/README.md) of the hyperparameterExp folder.
+
 CF - Nearest Optimal Wololo
 
 The simplest way to generate counterfactuals for any tabular dataset and model.
