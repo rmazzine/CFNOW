@@ -2,7 +2,7 @@ absl-py==1.2.0
 astunparse==1.6.3
 cachetools==5.2.0
 certifi
-cfbench==0.0.6
+cfbench==0.0.7
 charset-normalizer==2.1.1
 click==8.1.3
 flatbuffers==1.12
