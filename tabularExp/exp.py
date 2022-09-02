@@ -9,16 +9,22 @@ from cfnow.cf_finder import find_tabular
 from tabularExp.utils import timeout, TimeoutError
 
 # Get initial and final index if provided
-if len(sys.argv) == 3:
-    initial_idx = sys.argv[1]
-    final_idx = sys.argv[2]
+if len(sys.argv) == 2:
+    cf_strategy = sys.argv[1]
+if len(sys.argv) == 4:
+    cf_strategy = sys.argv[1]
+    initial_idx = sys.argv[2]
+    final_idx = sys.argv[3]
 else:
+    cf_strategy = 'greedy'
     initial_idx = 0
     final_idx = TOTAL_FACTUAL
 
 # Create Benchmark Generator
 benchmark_generator = BenchmarkCF(
+    output_number=1,
     show_progress=True,
+    disable_tf2=True,
     disable_gpu=True,
     initial_idx=int(initial_idx),
     final_idx=int(final_idx)).create_generator()
@@ -45,6 +51,7 @@ def run_experiment(benchmark_data):
         cf_data = find_tabular(
             pd.Series(factual_array, index=oh_cols),
             model.predict,
+            cf_strategy=cf_strategy,
             feat_types=feat_types,
             has_ohe=True)
 
@@ -55,13 +62,13 @@ def run_experiment(benchmark_data):
         # Simple
         evaluator(
             cf_out=cf_data.cf_not_optimized.tolist(),
-            algorithm_name='cfnow_greedy_simple',
+            algorithm_name=f'cfnow_{cf_strategy}_simple',
             cf_generation_time=cf_data.time_cf_not_optimized,
             save_results=True)
         # Optimized
         evaluator(
             cf_out=cf_data.cf.tolist(),
-            algorithm_name='cfnow_greedy',
+            algorithm_name=f'cfnow_{cf_strategy}',
             cf_generation_time=cf_data.time_cf,
             save_results=True)
     except TimeoutError:
