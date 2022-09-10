@@ -3,10 +3,10 @@ import sys
 sys.path.append('../')
 
 import pandas as pd
-from cfbench.cfbench import BenchmarkCF, analyze_results, TOTAL_FACTUAL
+from cfbench.cfbench import BenchmarkCF, TOTAL_FACTUAL
 
 from cfnow.cf_finder import find_tabular
-from tabularExp.utils import timeout, TimeoutError
+from benchmark.utils import timeout, TimeoutError
 
 # Get initial and final index if provided
 if len(sys.argv) == 2:
@@ -44,6 +44,9 @@ def run_experiment(benchmark_data):
     # OH columns
     oh_cols = list(benchmark_data['df_oh_test'].columns)[:-1]
 
+    # Get Evaluator
+    evaluator = benchmark_data['cf_evaluator']
+
     feat_types = {f: 'cat' if str(int(f.split('_')[0])) in cat_feats else 'num' for f in oh_cols}
 
     try:
@@ -55,19 +58,34 @@ def run_experiment(benchmark_data):
             feat_types=feat_types,
             has_ohe=True)
 
-        # Get Evaluator
-        evaluator = benchmark_data['cf_evaluator']
+        cf_not_optimized = cf_data.cf_not_optimized
+        cf_optimized = cf_data.cf
+
+        # Check CF
+        if cf_not_optimized is not None:
+            print('CF not optimized found')
+            cf_not_optimized = cf_not_optimized.tolist()
+        else:
+            print('CF not optimized not found')
+            cf_not_optimized = factual_array
+
+        if cf_optimized is not None:
+            print('CF optimized found')
+            cf_optimized = cf_optimized.tolist()
+        else:
+            print('CF optimized not found')
+            cf_optimized = factual_array
 
         # Evaluate CF
         # Simple
         evaluator(
-            cf_out=cf_data.cf_not_optimized.tolist(),
+            cf_out=cf_not_optimized,
             algorithm_name=f'cfnow_{cf_strategy}_simple',
             cf_generation_time=cf_data.time_cf_not_optimized,
             save_results=True)
         # Optimized
         evaluator(
-            cf_out=cf_data.cf.tolist(),
+            cf_out=cf_optimized,
             algorithm_name=f'cfnow_{cf_strategy}',
             cf_generation_time=cf_data.time_cf,
             save_results=True)
