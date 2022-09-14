@@ -338,14 +338,14 @@ def find_image(
         replace_mode: str = 'blur',
         img_cf_strategy: str = 'nonspecific',
         cf_strategy: str = 'greedy',
-        increase_threshold: (int, float) = -1,
+        increase_threshold: (int, float) = None,
         it_max: int = 5000,
         limit_seconds: int = 120,
         ft_change_factor: float = 0.1,
         ft_it_max: int = None,
-        size_tabu: (int, float) = None,
-        ft_threshold_distance: float = None,
-        avoid_back_original: bool = False,
+        size_tabu: (int, float) = 0.5,
+        ft_threshold_distance: float = -1.0,
+        avoid_back_original: bool = True,
         threshold_changes: int = 100,
         verbose: bool = False) -> _CFImage:
     """
@@ -369,7 +369,7 @@ def find_image(
     :param cf_strategy: (optional) Strategy to find CF, can be "greedy" or "random". Default='greedy'
     :type cf_strategy: str
     :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
-    if the improvement is below that, search will stop. -1 deactivates this check. Default=-1
+    if the improvement is below that, search will stop. -1 deactivates this check. Default=-1 (greedy) or 1e-05 (random)
     :type increase_threshold: int, float
     :param it_max: (optional) Maximum number of iterations for CF search. Default=5000
     :type it_max: int
@@ -379,16 +379,16 @@ def find_image(
     use, initially, 10% of features' value). Default=0.1
     :type ft_change_factor: float
     :param ft_it_max: (optional) Maximum number of iterations for CF optimization step.
-    Default=2000 (greedy), 100 (random)
+    Default=1000 (greedy), 500 (random)
     :type ft_it_max: int
     :param size_tabu: (optional) (optional) Size of tabu list, if float it's the share of features,
-    if int it's the exact number defined. Default= 5 (greedy), 0.1 (random)
+    if int it's the exact number defined. Default=0.5
     :type size_tabu: int, float
     :param ft_threshold_distance: (optional) Threshold for CF optimization enhancement, if improvement is below the
-    threshold, the optimization will be stopped. -1 deactivates this check. Default= -1 (greedy), 1e-05 (random)
+    threshold, the optimization will be stopped. -1 deactivates this check. Default=-1.0
     :type ft_threshold_distance: float
     :param avoid_back_original: (optional) For the greedy strategy, not allows changing back to the original values.
-    Default=False
+    Default=True
     :type avoid_back_original: bool
     :param threshold_changes: (optional) For the random strategy, threshold for the maximum number of changes to be
     created in the CF finding process. Default=100
@@ -408,19 +408,15 @@ def find_image(
     if cf_strategy == 'random':
         cf_finder = _random_generator
         if ft_it_max is None:
-            ft_it_max = 100
-        if size_tabu is None:
-            size_tabu = 0.1
-        if ft_threshold_distance is None:
-            ft_threshold_distance = 1e-05
+            ft_it_max = 500
+        if increase_threshold is None:
+            increase_threshold = 1e-05
     elif cf_strategy == 'greedy':
         cf_finder = _greedy_generator
         if ft_it_max is None:
-            ft_it_max = 2000
-        if size_tabu is None:
-            size_tabu = 5
-        if ft_threshold_distance is None:
-            ft_threshold_distance = -1
+            ft_it_max = 1000
+        if increase_threshold is None:
+            increase_threshold = -1
     if cf_finder is None:
         raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
 
@@ -558,14 +554,14 @@ def find_text(
         textual_classifier,
         word_replace_strategy: str = 'remove',
         cf_strategy: str = 'greedy',
-        increase_threshold: (int, float) = None,
+        increase_threshold: (int, float) = -1,
         it_max: int = 5000,
         limit_seconds: int = 120,
         ft_change_factor: float = 0.1,
         ft_it_max: int = None,
-        size_tabu: (int, float) = 0.5,
-        ft_threshold_distance: float = -1,
-        avoid_back_original: bool = True,
+        size_tabu: (int, float) = None,
+        ft_threshold_distance: float = None,
+        avoid_back_original: bool = False,
         threshold_changes: int = 100,
         verbose: bool = False) -> _CFText:
     """
@@ -580,7 +576,7 @@ def find_text(
     :param cf_strategy: (optional) Strategy to find CF, can be "greedy" (default) or "random"
     :type cf_strategy: str
     :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
-    if the improvement is below that, search will stop. -1 deactivates this check. Default=-1 (greedy) 1e-05 (random)
+    if the improvement is below that, search will stop. -1 deactivates this check. Default=-1
     :type increase_threshold: int, float
     :param it_max: (optional) Maximum number of iterations for CF search. Default=5000
     :type it_max: int
@@ -589,17 +585,17 @@ def find_text(
     :param ft_change_factor: (optional) Factor used for numerical features to change their values (e.g. if 0.1 it will
     use, initially, 10% of features' value). Default=0.1
     :type ft_change_factor: float
-    :param ft_it_max: (optional) Maximum number of iterations for CF optimization step. Default=1000 (greedy)
-    or 500 (random)
+    :param ft_it_max: (optional) Maximum number of iterations for CF optimization step. Default=2000 (greedy)
+    or 100 (random)
     :type ft_it_max: int
     :param size_tabu: (optional) Size of tabu list, if float it's the share of features,
-    if int it's the exact number defined. Default=0.5
+    if int it's the exact number defined. Default= 5 (greedy) or 0.1 (random)
     :type size_tabu: int, float
     :param ft_threshold_distance: (optional) Threshold for CF optimization enhancement, if improvement is below the
-    threshold, the optimization will be stopped. -1 deactivates this check. Default=-1
+    threshold, the optimization will be stopped. -1 deactivates this check. Default=-1 (greedy) 1e-05 (random)
     :type ft_threshold_distance: float
     :param avoid_back_original: (optional) For the greedy strategy, not allows changing back to the original values.
-    Default= True
+    Default= False
     :type avoid_back_original: bool
     :param threshold_changes: (optional) For the random strategy, threshold for the maximum number of changes to be
     created in the CF finding process. Default=100
@@ -618,16 +614,20 @@ def find_text(
     cf_finder = None
     if cf_strategy == 'random':
         cf_finder = _random_generator
-        if increase_threshold is None:
-            increase_threshold = 1e-05
         if ft_it_max is None:
-            ft_it_max = 500
+            ft_it_max = 100
+        if size_tabu is None:
+            size_tabu = 0.1
+        if ft_threshold_distance is None:
+            ft_threshold_distance = 1e-05
     elif cf_strategy == 'greedy':
         cf_finder = _greedy_generator
-        if increase_threshold is None:
-            increase_threshold = -1
         if ft_it_max is None:
-            ft_it_max = 1000
+            ft_it_max = 2000
+        if size_tabu is None:
+            size_tabu = 5
+        if ft_threshold_distance is None:
+            ft_threshold_distance = -1.0
     if cf_finder is None:
         raise AttributeError(f'cf_strategy must be "random" or "greedy" and not {cf_strategy}')
 

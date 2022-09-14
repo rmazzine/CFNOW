@@ -270,14 +270,14 @@ class TestScriptBase(unittest.TestCase):
     cf_img_default_replace_mode = 'blur'
     cf_img_default_img_cf_strategy = 'nonspecific'
     cf_img_default_cf_strategy = 'greedy'
-    cf_img_default_increase_threshold = -1
+    cf_img_default_increase_threshold = None
     cf_img_default_it_max = 5000
     cf_img_default_limit_seconds = 120
     cf_img_default_ft_change_factor = 0.1
     cf_img_default_ft_it_max = None
-    cf_img_default_size_tabu = None
-    cf_img_default_ft_threshold_distance = None
-    cf_img_default_avoid_back_original = False
+    cf_img_default_size_tabu = 0.5
+    cf_img_default_ft_threshold_distance = -1.0
+    cf_img_default_avoid_back_original = True
     cf_img_default_threshold_changes = 100
     cf_img_default_verbose = False
 
@@ -868,9 +868,9 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_greedy_generator.call_args[1]['ft_change_factor'], ft_change_factor)
         self.assertEqual(mock_greedy_generator.call_args[1]['ohe_list'], [])
         self.assertEqual(mock_greedy_generator.call_args[1]['ohe_indexes'], [])
-        self.assertEqual(mock_greedy_generator.call_args[1]['increase_threshold'], increase_threshold)
+        self.assertEqual(mock_greedy_generator.call_args[1]['increase_threshold'], -1.0)
         self.assertEqual(mock_greedy_generator.call_args[1]['tabu_list'], None)
-        self.assertEqual(mock_greedy_generator.call_args[1]['avoid_back_original'], False)
+        self.assertEqual(mock_greedy_generator.call_args[1]['avoid_back_original'], True)
         self.assertEqual(mock_greedy_generator.call_args[1]['size_tabu'], 1)
         self.assertEqual(mock_greedy_generator.call_args[1]['ft_time'], None)
         self.assertEqual(mock_greedy_generator.call_args[1]['ft_time_limit'], None)
@@ -885,17 +885,17 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_fine_tuning.call_args[1]['mp1c'], mock_adjust_multiclass_nonspecific())
         self.assertEqual(mock_fine_tuning.call_args[1]['ohe_list'], [])
         self.assertEqual(mock_fine_tuning.call_args[1]['ohe_indexes'], [])
-        self.assertEqual(mock_fine_tuning.call_args[1]['increase_threshold'], increase_threshold)
+        self.assertEqual(mock_fine_tuning.call_args[1]['increase_threshold'], -1.0)
         self.assertEqual(mock_fine_tuning.call_args[1]['feat_types'], {0: 'cat', 1: 'cat'})
         self.assertEqual(mock_fine_tuning.call_args[1]['ft_change_factor'], ft_change_factor)
         self.assertEqual(mock_fine_tuning.call_args[1]['it_max'], 5000)
         self.assertEqual(mock_fine_tuning.call_args[1]['size_tabu'], 1)
-        self.assertEqual(mock_fine_tuning.call_args[1]['ft_it_max'], 2000)
+        self.assertEqual(mock_fine_tuning.call_args[1]['ft_it_max'], 1000)
         self.assertEqual(mock_fine_tuning.call_args[1]['ft_threshold_distance'], -1)
         self.assertEqual(mock_fine_tuning.call_args[1]['time_start'], mock_datetime.now())
         self.assertEqual(mock_fine_tuning.call_args[1]['limit_seconds'], 120)
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_finder'], mock_greedy_generator)
-        self.assertEqual(mock_fine_tuning.call_args[1]['avoid_back_original'], False)
+        self.assertEqual(mock_fine_tuning.call_args[1]['avoid_back_original'], True)
         self.assertEqual(mock_fine_tuning.call_args[1]['threshold_changes'], 100)
         self.assertEqual(mock_fine_tuning.call_args[1]['verbose'], False)
 
@@ -985,8 +985,10 @@ class TestScriptBase(unittest.TestCase):
         mock_random_generator.assert_called()
 
         self.assertEqual(mock_random_generator.call_args[1]['it_max'], 5000)
-        self.assertEqual(mock_fine_tuning.call_args[1]['ft_it_max'], 100)
-        self.assertEqual(mock_fine_tuning.call_args[1]['ft_threshold_distance'], 1e-05)
+        self.assertEqual(mock_random_generator.call_args[1]['increase_threshold'], 1e-05)
+        self.assertEqual(mock_random_generator.call_args[1]['it_max'], 5000)
+        self.assertEqual(mock_fine_tuning.call_args[1]['size_tabu'], 1)
+        self.assertEqual(mock_fine_tuning.call_args[1]['ft_threshold_distance'], -1.0)
         self.assertEqual(mock_fine_tuning.call_args[1]['threshold_changes'], 100)
 
     @patch('cfnow.cf_finder._CFImage')
@@ -1669,14 +1671,14 @@ class TestScriptBase(unittest.TestCase):
 
         word_replace_strategy = 'remove'
         cf_strategy = 'greedy'
-        increase_threshold = None
+        increase_threshold = -1.0
         it_max = 5000
         limit_seconds = 120
         ft_change_factor = 0.1
         ft_it_max = None
-        size_tabu = 0.5
-        ft_threshold_distance = 0.01
-        avoid_back_original = True
+        size_tabu = None
+        ft_threshold_distance = None
+        avoid_back_original = False
         threshold_changes = 100
         verbose = False
 
@@ -1736,7 +1738,7 @@ class TestScriptBase(unittest.TestCase):
 
         # Check if define_tabu_size was called with the right parameters
         self.assertEqual(len(mock_define_tabu_size.call_args[0]), 2)
-        self.assertEqual(mock_define_tabu_size.call_args[0][0], 0.5)
+        self.assertEqual(mock_define_tabu_size.call_args[0][0], 5)
         self.assertEqual(mock_define_tabu_size.call_args[0][1].tolist(), factual_df.iloc[0].to_numpy().tolist())
 
         # Check if cf_finder was called with the right parameters
@@ -1773,8 +1775,8 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_fine_tuning.call_args[1]['ft_change_factor'], ft_change_factor)
         self.assertEqual(mock_fine_tuning.call_args[1]['it_max'], it_max)
         self.assertEqual(mock_fine_tuning.call_args[1]['size_tabu'], mock_define_tabu_size())
-        self.assertEqual(mock_fine_tuning.call_args[1]['ft_it_max'], 1000)
-        self.assertEqual(mock_fine_tuning.call_args[1]['ft_threshold_distance'], ft_threshold_distance)
+        self.assertEqual(mock_fine_tuning.call_args[1]['ft_it_max'], 2000)
+        self.assertEqual(mock_fine_tuning.call_args[1]['ft_threshold_distance'], -1.0)
         self.assertEqual(mock_fine_tuning.call_args[1]['time_start'], mock_datetime.now())
         self.assertEqual(mock_fine_tuning.call_args[1]['limit_seconds'], 120)
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_finder'], mock_greedy_generator)
@@ -1826,14 +1828,14 @@ class TestScriptBase(unittest.TestCase):
 
         word_replace_strategy = 'remove'
         cf_strategy = 'random'
-        increase_threshold = None
+        increase_threshold = -1.0
         it_max = 5000
         limit_seconds = 120
         ft_change_factor = 0.1
         ft_it_max = None
-        size_tabu = 0.5
-        ft_threshold_distance = 0.01
-        avoid_back_original = True
+        size_tabu = None
+        ft_threshold_distance = None
+        avoid_back_original = False
         verbose = False
 
         factual_df = pd.DataFrame([{'0_0': 1, '0_1': 0, '1_0': 1, '1_1': 0, '2_0': 1, '2_1': 0}])
@@ -1867,9 +1869,11 @@ class TestScriptBase(unittest.TestCase):
         mock_random_generator.assert_called_once()
 
         # Check call for _fine_tuning
-        self.assertEqual(mock_random_generator.call_args[1]['increase_threshold'], 1e-05)
+        self.assertEqual(mock_random_generator.call_args[1]['increase_threshold'], -1.0)
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_finder'], mock_random_generator)
-        self.assertEqual(mock_fine_tuning.call_args[1]['ft_it_max'], 500)
+        self.assertEqual(mock_fine_tuning.call_args[1]['ft_it_max'], 100)
+        self.assertEqual(mock_fine_tuning.call_args[1]['size_tabu'], 1)
+        self.assertEqual(mock_fine_tuning.call_args[1]['ft_threshold_distance'], 1e-05)
 
     @patch('cfnow.cf_finder._CFText')
     @patch('cfnow.cf_finder.warnings')
