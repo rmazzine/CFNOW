@@ -95,7 +95,7 @@ The best parameters for each data type are:
   "threshold_changes": 100
 }
 ```
-### Image Greedy
+### Text Greedy
 ```json
 {
   "increase_threshold": -1.0,
@@ -105,7 +105,7 @@ The best parameters for each data type are:
   "ft_threshold_distance": -1.0, 
   "avoid_back_original": false}
 ```
-### Image Random
+### Text Random
 ```json
 {
   "increase_threshold": -1.0, 
@@ -116,7 +116,7 @@ The best parameters for each data type are:
   "threshold_changes": 100
 }
 ```
-### Text Greedy
+### Image Greedy
 ```json
 {
   "increase_threshold": -1.0,
@@ -127,7 +127,7 @@ The best parameters for each data type are:
   "avoid_back_original": true
 }
 ```
-### Text Random
+### Image Random
 ```json
 {
   "increase_threshold": 1e-05,
