@@ -7,8 +7,6 @@ sys.path.append(f'{SCRIPT_DIR}/..')
 
 from imageExperiments.utils import download_and_unzip_data
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
 if not os.path.exists(f'{SCRIPT_DIR}/Datasets'):
     os.mkdir(f'{SCRIPT_DIR}/Datasets')
 

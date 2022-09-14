@@ -1,5 +1,7 @@
 import os
+import signal
 import tarfile
+from functools import wraps
 
 import requests
 
@@ -26,3 +28,24 @@ def download_and_unzip_data(save_dir: str, url: str, file_name: str, folder_name
     tar.close()
 
     os.remove(f'{save_dir}/{folder_name}/{file_name}')
+
+
+# IMPORTANT: this is not thread-safe
+def timeout(seconds, error_message='Function call timed out'):
+    def _handle_timeout(signum, frame):
+        raise TimeoutError(error_message)
+
+    def decorated(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            signal.signal(signal.SIGALRM, _handle_timeout)
+            signal.alarm(seconds)
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                signal.alarm(0)
+            return result
+
+        return wrapper
+
+    return decorated

@@ -1,7 +1,5 @@
 import os
-import sys
 import hashlib
-from contextlib import contextmanager
 
 import cv2
 import pandas as pd
@@ -10,6 +8,8 @@ import tensorflow as tf
 import PIL.Image as Image
 import tensorflow_hub as hub
 from skimage.segmentation import quickshift
+
+from imageExperiments.utils import timeout
 
 from imageExperiments.cf_generators.cfnow import CFNOWGreedyGenerator, CFNOWRandomGenerator
 from imageExperiments.cf_generators.blur import BlurGenerator
@@ -21,16 +21,8 @@ from imageExperiments.cf_generators.shapc import SHAPCGenerator
 
 import warnings
 
-
-@contextmanager
-def suppress_stdout():
-    with open(os.devnull, "w") as devnull:
-        old_stdout = sys.stdout
-        sys.stdout = devnull
-        try:
-            yield
-        finally:
-            sys.stdout = old_stdout
+# Disable tensorflow 2 behavior
+tf.compat.v1.disable_v2_behavior()
 
 warnings.filterwarnings("ignore")
 
@@ -116,15 +108,19 @@ def run_experiment():
                     print(f'Skipping experiment for {generator_name} and {img_filename}')
                     continue
 
-                with suppress_stdout():
-                    if generator_name not in ['cfnow_greedy', 'cfnow_random']:
-                        list_solutions.append(generator_instance.explain())
-                        list_solution_names.append(generator_name)
+                # Timeout the experiment if it takes too long
+                @timeout(600)
+                def run_explainer():
+                    return generator_instance.explain()
 
-                    else:
-                        for cfnow_type, solution in zip(['optimized', 'not_optimized'], generator_instance.explain()):
-                            list_solutions.append(solution)
-                            list_solution_names.append(generator_name + '_' + cfnow_type)
+                if generator_name not in ['cfnow_greedy', 'cfnow_random']:
+                    list_solutions.append(run_explainer())
+                    list_solution_names.append(generator_name)
+
+                else:
+                    for cfnow_type, solution in zip(['optimized', 'not_optimized'], run_explainer()):
+                        list_solutions.append(solution)
+                        list_solution_names.append(generator_name + '_' + cfnow_type)
 
                 for solution, solution_name in zip(list_solutions, list_solution_names):
                     cf_classificaiton, exp_time, segments_in_explanation = solution
