@@ -38,9 +38,23 @@ cf_generators = {
     'shapc': SHAPCGenerator
 }
 
-
+model_urls = {
+    'mobilenetv2': 'https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/2',
+    'mobilenetv3': 'https://tfhub.dev/google/imagenet/mobilenet_v3_large_100_224/classification/5',
+    'efficientnet': 'https://tfhub.dev/google/imagenet/efficientnet_v2_imagenet1k_b0/classification/2',
+    'resnet': 'https://tfhub.dev/google/imagenet/resnet_v2_152/classification/5'
+}
+model_choice = 'mobilenetv2'
 # Import model
-classifier_url = "https://tfhub.dev/google/tf2-preview/mobilenet_v2/classification/2"
+classifier_url = model_urls[model_choice]
+
+if not os.path.exists(f'{SCRIPT_DIR}/Results'):
+    os.mkdir(f'{SCRIPT_DIR}/Results')
+
+results_folder = f'{SCRIPT_DIR}/Results/Results_{model_choice}'
+
+if not os.path.exists(results_folder):
+    os.mkdir(results_folder)
 
 # Define image shape
 IMAGE_SHAPE = (224, 224)
@@ -101,7 +115,8 @@ def run_experiment():
                 list_solutions = []
                 list_solution_names = []
                 generator_instance = generator(
-                    img, classifier, original_prediction_idx, replace_img, imagenet_labels, generator_name, img_hash)
+                    img, classifier, original_prediction_idx, replace_img, imagenet_labels, generator_name, img_hash,
+                    results_folder)
 
                 # Skip the experiment if the flag is set
                 if generator_instance.skip_experiment:
@@ -132,7 +147,7 @@ def run_experiment():
                         'time': exp_time,
                         'segments_in_explanation': segments_in_explanation,
                         'generator': solution_name
-                    }]).to_pickle(f'{SCRIPT_DIR}/Results/{img_hash}_{solution_name}.pkl')
+                    }]).to_pickle(f'{results_folder}/{img_hash}_{solution_name}.pkl')
                     if cf_classificaiton != original_classification:
                         print(f'CF found for {solution_name}')
                     else:
@@ -151,7 +166,7 @@ def run_experiment():
                         'time': exp_time,
                         'segments_in_explanation': segments_in_explanation,
                         'generator': solution_name
-                    }]).to_pickle(f'{SCRIPT_DIR}/Results/{img_hash}_{solution_name}.pkl')
+                    }]).to_pickle(f'{results_folder}/{img_hash}_{solution_name}.pkl')
                 else:
                     for cfnow_type in ['optimized', 'not_optimized']:
                         solution_name = generator_name + '_' + cfnow_type
@@ -164,5 +179,5 @@ def run_experiment():
                             'time': exp_time,
                             'segments_in_explanation': segments_in_explanation,
                             'generator': solution_name
-                        }]).to_pickle(f'{SCRIPT_DIR}/Results/{img_hash}_{solution_name}.pkl')
+                        }]).to_pickle(f'{results_folder}/{img_hash}_{solution_name}.pkl')
                 continue

@@ -16,9 +16,6 @@ if not os.path.exists(f'{SCRIPT_DIR}/Datasets'):
         'CFNOW_image_exp_data.tar.xz',
         f'')
 
-if not os.path.exists(f'{SCRIPT_DIR}/Results'):
-    os.mkdir(f'{SCRIPT_DIR}/Results')
-
 
 from imageExperiments.exp import run_experiment
 

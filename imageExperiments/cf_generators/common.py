@@ -8,13 +8,14 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 class ImageCounterfactualGenerator:
 
     def __init__(self, img, classifier, original_prediction_idx, replace_img, imagenet_labels, generator_name,
-                 img_hash, skip_found=True):
+                 img_hash, results_folder, skip_found=True):
         self.img = img
         self.classifier = classifier
         self.original_prediction_idx = original_prediction_idx
         self.replace_img = replace_img
         self.imagenet_labels = imagenet_labels
         self.skip_experiment = False
+        self.results_folder = results_folder
 
         experiment_names = [f'{img_hash}_{generator_name}.pkl']
         if generator_name in ['cfnow_greedy', 'cfnow_random']:
@@ -25,7 +26,7 @@ class ImageCounterfactualGenerator:
         if skip_found:
             found_exp = 0
             for exp_name in experiment_names:
-                if os.path.exists(f'{SCRIPT_DIR}/../Results/{exp_name}'):
+                if os.path.exists(f'{self.results_folder}/{exp_name}'):
                     found_exp += 1
             if found_exp == len(experiment_names):
                 self.skip_experiment = True
