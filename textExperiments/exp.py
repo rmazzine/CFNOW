@@ -22,6 +22,17 @@ from textExperiments.cf_generators.cfnow import cfnow_greedy, cfnow_random
 from textExperiments.cf_generators.limec import make_exp_limec
 from textExperiments.cf_generators.shapc import make_exp_shapc
 
+# Count the number the files in all directories inside a directory
+def count_files(directory):
+    return sum([len(files) for r, d, files in os.walk(directory)])
+
+cf_generators_experiment = {
+    'cfnow_greedy': cfnow_greedy,
+    'cfnow_random': cfnow_random,
+    'limec': make_exp_limec,
+    'shapc': make_exp_shapc,
+}
+
 TOTAL_EXPERIMENTS = count_files(
     f'{SCRIPT_DIR}/Datasets')*len(cf_generators_experiment)
 
@@ -50,18 +61,6 @@ tf.config.experimental.set_virtual_device_configuration(gpus[0], [
 random.seed(42)
 
 skip_found = True
-
-cf_generators_experiment = {
-    'cfnow_greedy': cfnow_greedy,
-    'cfnow_random': cfnow_random,
-    'limec': make_exp_limec,
-    'shapc': make_exp_shapc,
-}
-
-
-# Count the number the files in all directories inside a directory
-def count_files(directory):
-    return sum([len(files) for r, d, files in os.walk(directory)])
 
 
 if __name__ == '__main__':
