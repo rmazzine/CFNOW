@@ -22,8 +22,26 @@ from textExperiments.cf_generators.cfnow import cfnow_greedy, cfnow_random
 from textExperiments.cf_generators.limec import make_exp_limec
 from textExperiments.cf_generators.shapc import make_exp_shapc
 
+TOTAL_EXPERIMENTS = count_files(
+    f'{SCRIPT_DIR}/Datasets')*len(cf_generators_experiment)
 
-MEMORY_LIMIT = 4 * 1024
+if len(sys.argv) == 4:
+    START_ID = int(sys.argv[1])
+    END_ID = int(sys.argv[2])
+    MODEL_SUFFIX = sys.argv[3]
+else:
+    START_ID = 0
+    END_ID = int(TOTAL_EXPERIMENTS)
+    MODEL_SUFFIX = 'bert'
+
+memory_conf_opt = {
+    'bert': 4 * 1024,
+    'electra_small': 4 * 1024,
+    'experts_wiki_books': 8 * 1024,
+    'talking-heads_base': 8 * 1024,
+}
+
+MEMORY_LIMIT = memory_conf_opt[MODEL_SUFFIX]
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_virtual_device_configuration(gpus[0], [
@@ -44,19 +62,6 @@ cf_generators_experiment = {
 # Count the number the files in all directories inside a directory
 def count_files(directory):
     return sum([len(files) for r, d, files in os.walk(directory)])
-
-
-TOTAL_EXPERIMENTS = count_files(
-    f'{SCRIPT_DIR}/Datasets')*len(cf_generators_experiment)
-
-if len(sys.argv) == 4:
-    START_ID = int(sys.argv[1])
-    END_ID = int(sys.argv[2])
-    MODEL_SUFFIX = sys.argv[3]
-else:
-    START_ID = 0
-    END_ID = int(TOTAL_EXPERIMENTS)
-    MODEL_SUFFIX = 'bert'
 
 
 if __name__ == '__main__':
