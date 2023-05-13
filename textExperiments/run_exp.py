@@ -42,7 +42,7 @@ elif MODEL_SUFFIX == 'electra_small' and not os.path.exists(f'{SCRIPT_DIR}/Model
     download_and_unzip_data(
         f'{SCRIPT_DIR}/',
         BUCKET_URL,
-        'imdb_bert.tar.gz',
+        'imdb_electra_small.tar.gz',
         f'Models/')
 elif MODEL_SUFFIX == 'experts_wiki_books' and not os.path.exists(f'{SCRIPT_DIR}/Models/imdb_experts_wiki_books'):
     download_and_unzip_data(
@@ -67,19 +67,19 @@ elif MODEL_SUFFIX == 'electra_small' and not os.path.exists(f'{SCRIPT_DIR}/Model
     download_and_unzip_data(
         f'{SCRIPT_DIR}/',
         BUCKET_URL,
-        'twitter_electra_small.tar.xz',
+        'twitter_electra_small.tar.gz',
         f'Models/')
 elif MODEL_SUFFIX == 'experts_wiki_books' and not os.path.exists(f'{SCRIPT_DIR}/Models/twitter_experts_wiki_books'):
     download_and_unzip_data(
         f'{SCRIPT_DIR}/',
         BUCKET_URL,
-        'twitter_experts_wiki_books.tar.xz',
+        'twitter_experts_wiki_books.tar.gz',
         f'Models/')
 elif MODEL_SUFFIX == 'talking-heads_base' and not os.path.exists(f'{SCRIPT_DIR}/Models/twitter_talking-heads_base'):
     download_and_unzip_data(
         f'{SCRIPT_DIR}/',
         BUCKET_URL,
-        'twitter_talking-heads_base.tar.xz',
+        'twitter_talking-heads_base.tar.gz',
         f'Models/')
 
 if not os.path.exists(f'{SCRIPT_DIR}/Results'):

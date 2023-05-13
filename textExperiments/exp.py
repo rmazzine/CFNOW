@@ -103,15 +103,15 @@ if __name__ == '__main__':
                 # Verify if the experiment has already been done
                 if skip_found:
                     if algorithm_name not in ['cfnow_greedy', 'cfnow_random']:
-                        if os.path.exists(f'{SCRIPT_DIR}/Results/{experiment_hash}_{algorithm_name}.pkl'):
+                        if os.path.exists(f'{SCRIPT_DIR}/Results/{experiment_hash}_{algorithm_name}_{MODEL_SUFFIX}.pkl'):
                             print(
                                 f'Skipping Experiment {exp_id - 1} ', algorithm_name)
                             continue
                     else:
                         if os.path.exists(
-                                f'{SCRIPT_DIR}/Results/{experiment_hash}_{algorithm_name}_optimized.pkl') and \
+                                f'{SCRIPT_DIR}/Results/{experiment_hash}_{algorithm_name}_{MODEL_SUFFIX}_optimized.pkl') and \
                                 os.path.exists(
-                                    f'{SCRIPT_DIR}/Results/{experiment_hash}_{algorithm_name}_not_optimized.pkl'):
+                                    f'{SCRIPT_DIR}/Results/{experiment_hash}_{algorithm_name}_{MODEL_SUFFIX}_not_optimized.pkl'):
                             print(
                                 f'Skipping Experiment {exp_id - 1} ', algorithm_name)
                             continue
@@ -144,7 +144,7 @@ if __name__ == '__main__':
 
                     output_data = {
                         'experiment_hash': experiment_hash,
-                        'algorithm': algorithm_name + complement_algorithm_name,
+                        'algorithm': algorithm_name + f'_{MODEL_SUFFIX}' + complement_algorithm_name,
                         'factual_text': text_input,
                         'factual_class': factual_class[0][0],
                         'cf_text': cf_text,
@@ -158,4 +158,4 @@ if __name__ == '__main__':
                           f'{output_data["algorithm"]} - Factual score {factual_class[0][0]} - CF score {cf_class}')
 
                     pd.DataFrame([output_data]).to_pickle(
-                        f'{SCRIPT_DIR}/Results/{experiment_hash}_{algorithm_name + complement_algorithm_name}.pkl')
+                        f'{SCRIPT_DIR}/Results/{experiment_hash}_{algorithm_name + f"_{MODEL_SUFFIX}" + complement_algorithm_name}.pkl')

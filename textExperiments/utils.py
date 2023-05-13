@@ -23,7 +23,7 @@ def download_and_unzip_data(save_dir: str, url: str, file_name: str, folder_name
 
     open(f'{save_dir}/{folder_name}/{file_name}', 'wb').write(response_download_data.content)
 
-    tar = tarfile.open(f'{save_dir}/{folder_name}/{file_name}', "r:xz")
+    tar = tarfile.open(f'{save_dir}/{folder_name}/{file_name}', f"r:{file_name.split('.')[-1]}")
     tar.extractall(f'{save_dir}/{folder_name}')
     tar.close()
 
