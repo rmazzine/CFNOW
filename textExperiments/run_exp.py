@@ -48,13 +48,13 @@ elif MODEL_SUFFIX == 'experts_wiki_books' and not os.path.exists(f'{SCRIPT_DIR}/
     download_and_unzip_data(
         f'{SCRIPT_DIR}/',
         BUCKET_URL,
-        'experts_wiki_books.tar.gz',
+        'imdb_experts_wiki_books.tar.gz',
         f'Models/')
 elif MODEL_SUFFIX == 'talking-heads_base' and not os.path.exists(f'{SCRIPT_DIR}/Models/imdb_talking-heads_base'):
     download_and_unzip_data(
         f'{SCRIPT_DIR}/',
         BUCKET_URL,
-        'experts_wiki_books.tar.gz',
+        'imdb_talking-heads_base.tar.gz',
         f'Models/')
 
 if MODEL_SUFFIX == 'bert' and not os.path.exists(f'{SCRIPT_DIR}/Models/twitter_bert'):
