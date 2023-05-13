@@ -46,14 +46,17 @@ def count_files(directory):
     return sum([len(files) for r, d, files in os.walk(directory)])
 
 
-TOTAL_EXPERIMENTS = count_files(f'{SCRIPT_DIR}/Datasets')*len(cf_generators_experiment)
+TOTAL_EXPERIMENTS = count_files(
+    f'{SCRIPT_DIR}/Datasets')*len(cf_generators_experiment)
 
-if len(sys.argv) == 3:
+if len(sys.argv) == 4:
     START_ID = int(sys.argv[1])
     END_ID = int(sys.argv[2])
+    MODEL_SUFFIX = sys.argv[3]
 else:
     START_ID = 0
     END_ID = int(TOTAL_EXPERIMENTS)
+    MODEL_SUFFIX = 'bert'
 
 
 if __name__ == '__main__':
@@ -64,14 +67,16 @@ if __name__ == '__main__':
 
         # Load model
         if experiment_dataset != current_model:
-            model = tf.keras.models.load_model(f'{SCRIPT_DIR}/Models/{experiment_dataset}_bert')
+            model = tf.keras.models.load_model(
+                f'{SCRIPT_DIR}/Models/{experiment_dataset}_{MODEL_SUFFIX}')
             current_model = experiment_dataset
 
             def textual_classifier(input_texts):
                 return tf.sigmoid(model(tf.constant(input_texts))).numpy()
 
         # Load data
-        files_path = os.listdir(f'{SCRIPT_DIR}/Datasets/exp_files_{experiment_dataset}_{class_data}/')
+        files_path = os.listdir(
+            f'{SCRIPT_DIR}/Datasets/exp_files_{experiment_dataset}_{class_data}/')
         files_path = [
             f'{SCRIPT_DIR}/Datasets/exp_files_{experiment_dataset}_{class_data}/{file_path}' for file_path in files_path]
         files_path.sort()
@@ -80,7 +85,8 @@ if __name__ == '__main__':
             text_input = open(file_data, 'r').read()
 
             # The experiment hash is based on the original text
-            experiment_hash = hashlib.sha256(text_input.encode('utf-8')).hexdigest()
+            experiment_hash = hashlib.sha256(
+                text_input.encode('utf-8')).hexdigest()
 
             factual_class = textual_classifier(np.array([text_input]))
 
@@ -98,26 +104,30 @@ if __name__ == '__main__':
                 if skip_found:
                     if algorithm_name not in ['cfnow_greedy', 'cfnow_random']:
                         if os.path.exists(f'{SCRIPT_DIR}/Results/{experiment_hash}_{algorithm_name}.pkl'):
-                            print(f'Skipping Experiment {exp_id - 1} ', algorithm_name)
+                            print(
+                                f'Skipping Experiment {exp_id - 1} ', algorithm_name)
                             continue
                     else:
                         if os.path.exists(
                                 f'{SCRIPT_DIR}/Results/{experiment_hash}_{algorithm_name}_optimized.pkl') and \
                                 os.path.exists(
                                     f'{SCRIPT_DIR}/Results/{experiment_hash}_{algorithm_name}_not_optimized.pkl'):
-                            print(f'Skipping Experiment {exp_id - 1} ', algorithm_name)
+                            print(
+                                f'Skipping Experiment {exp_id - 1} ', algorithm_name)
                             continue
                 try:
                     @timeout(600)
-                    def make_cf ():
+                    def make_cf():
                         return cf_generator(text_input, textual_classifier, factual_class, model)
 
                     cf_results = make_cf()
 
                 except Exception as e:
-                    print(f'Error in experiment {exp_id - 1} ', algorithm_name, e)
+                    print(
+                        f'Error in experiment {exp_id - 1} ', algorithm_name, e)
                     if algorithm_name in ['cfnow_greedy', 'cfnow_random']:
-                        cf_results = [[None, None, None, None, None], [None, None, None, None, None]]
+                        cf_results = [[None, None, None, None, None], [
+                            None, None, None, None, None]]
                     else:
                         cf_results = [[None, None, None, None, None]]
 
