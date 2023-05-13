@@ -49,7 +49,7 @@ memory_conf_opt = {
     'bert': 4 * 1024,
     'electra_small': 4 * 1024,
     'experts_wiki_books': 8 * 1024,
-    'talking-heads_base': 8 * 1024,
+    'talking-heads_base': 12 * 1024,
 }
 
 MEMORY_LIMIT = memory_conf_opt[MODEL_SUFFIX]
