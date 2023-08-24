@@ -7,6 +7,7 @@ import warnings
 from datetime import datetime
 from typing import Literal
 
+import counterplots as cpl
 import pandas as pd
 import numpy as np
 import cv2
@@ -26,7 +27,7 @@ class _CFBaseResponse:
     Class that defines the base object to the CFNOW return
     """
     def __init__(self, factual, factual_vector, cf_vectors, cf_not_optimized_vectors, obj_scores,
-                 time_cf, time_cf_not_optimized):
+                 time_cf, time_cf_not_optimized, model_pred=None):
         """
         This receives the base parameters that all CF should have
         :param factual: The factual instance provided by the user
@@ -45,6 +46,7 @@ class _CFBaseResponse:
         self.time_cf_not_optimized = time_cf_not_optimized
         self.total_cf = len(cf_vectors)
         self.cf_obj_scores = obj_scores
+        self.model_pred = model_pred
 
 
 class _CFTabular(_CFBaseResponse):
@@ -57,6 +59,17 @@ class _CFTabular(_CFBaseResponse):
 
         self.cfs = self.cf_vectors
         self.cfs_not_optimized = self.cf_not_optimized_vectors
+
+    def generate_counterplots(self, idx_cf):
+        """
+        Generates the counterplots for a given CF
+        :param idx_cf: The index of the CF to generate the counterplots
+        :return: A dictionary with the counterplots
+        """
+        return cpl.CreatePlot(
+            factual=np.array(self.factual.tolist()),
+            cf=np.array(self.cfs[idx_cf].tolist()),
+            model_pred=lambda x: self.model_pred(x)[:, 0])
 
 
 class _CFImage(_CFBaseResponse):
@@ -365,7 +378,8 @@ def find_tabular(
             cf_not_optimized_vectors=cf_unique,
             obj_scores=cf_unique_opt[1],
             time_cf=time_cf.total_seconds(),
-            time_cf_not_optimized=time_cf_not_optimized.total_seconds())
+            time_cf_not_optimized=time_cf_not_optimized.total_seconds(),
+            model_pred=model_predict_proba,)
 
 
 def find_image(

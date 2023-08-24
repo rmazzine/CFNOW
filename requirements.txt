@@ -4,3 +4,4 @@ scikit-learn>=1.0
 scikit-image>=0.19
 opencv-python>=4.5.5.62
 nltk>=3.6
+counterplots>=0.0.7

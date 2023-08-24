@@ -36,6 +36,30 @@ cf_obj = find_tabular(
 print(f"CF: {cf_obj.cfs[0]}\nCF class: {model.predict([cf_obj.cfs[0]])}")
 ```
 
+## Showing the Counterfactuals graphically
+This package is integrated with [CounterPlots](https://github.com/ADMAntwerp/CounterPlots), that allows you to graphically represent your counterfactual explanations!
+
+You can simply generate Greedy, CounterShapley, and Constellation charts for a given CF with:
+#### Greedy
+```python
+# Get the counterplots for the first CF and save as greedy.png
+cf_obj.generate_counterplots(0).greedy('greedy.png')
+```
+#### Output Example
+![image](/imgs/greedy_ex.png)
+#### CounterShapley
+```python
+# Get the counterplots for the first CF and save as greedy.png
+cf_obj.generate_counterplots(0).countershapley('countershapley.png')
+```
+![image](/imgs/countershapley_ex.png)
+#### Constellation
+```python
+# Get the counterplots for the first CF and save as greedy.png
+cf_obj.generate_counterplots(0).constellation('constellation.png')
+```
+![image](/imgs/const_ex.png)
+
 ## Improving your results
 The minimal example above considers all features as numerical continuous, however, some datasets can have categorical (binary or one-hot encoded) features. CFNOW can handle these data types in a simple way as demonstrated below:
 
