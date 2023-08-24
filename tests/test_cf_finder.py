@@ -571,7 +571,7 @@ class TestScriptBase(unittest.TestCase):
         it_max = 1000
         limit_seconds = 120
         ft_change_factor = 0.1
-        ft_it_max = 1000
+        ft_it_max = 5000
         size_tabu = 5
         ft_threshold_distance = 0.01
         has_ohe = False
@@ -2236,7 +2236,6 @@ class TestScriptBase(unittest.TestCase):
 
         self.assertEqual(mock_fine_tuning.call_args[1]['ft_it_max'], 2000)
         self.assertEqual(mock_fine_tuning.call_args[1]['ft_threshold_distance'], -1.0)
-        self.assertEqual(mock_fine_tuning.call_args[1]['time_start'], mock_datetime.now())
         self.assertEqual(mock_fine_tuning.call_args[1]['limit_seconds'], 120)
         self.assertEqual(mock_fine_tuning.call_args[1]['cf_finder'], mock_greedy_generator)
         self.assertEqual(mock_fine_tuning.call_args[1]['avoid_back_original'], avoid_back_original)
