@@ -298,9 +298,9 @@ def _generate_random_changes(changes_cat_bin, changes_cat_ohe, changes_num_up,
     return possible_changes, changes_idx
 
 
-def _random_generator_stop_conditions(cf_try_prob, iterations, ft_time, it_max, ft_time_limit):
+def _random_generator_stop_conditions(iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf):
 
-    if cf_try_prob >= 0.5:
+    if len(cf_unique) >= count_cf:
         return False
 
     if iterations >= it_max:
@@ -314,12 +314,13 @@ def _random_generator_stop_conditions(cf_try_prob, iterations, ft_time, it_max, 
     return True
 
 
-def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes,
-                      increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit,
-                      threshold_changes, verbose):
+def _random_generator(finder_strategy, cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
+                      ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time,
+                      ft_time_limit, threshold_changes, count_cf, cf_unique, verbose):
     """
     This algorithm takes a random strategy to find a minimal set of changes which change the classification prediction
 
+    :param finder_strategy: The strategy adopted by the CF generator
     :param cf_data_type: Type of data
     :param factual: The factual point
     :param mp1c: The predictor function wrapped in a predictable way
@@ -335,6 +336,8 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
     :param avoid_back_original: NOT USED FOR RANDOM STRATEGY
     :param ft_time: If it's in the fine-tune process, tells the current fine-tune time
     :param ft_time_limit: The time limit for fine-tune
+    :param count_cf: Number of CFs generated
+    :param cf_unique: List of unique CFs generated
     :param verbose: Gives additional information about the process if true
     :return: A counterfactual or the best try to achieve it
     """
@@ -358,7 +361,8 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
     cf_try_prob = mp1c(factual.to_frame().T)[0]
 
     # Repeat until max iterations or a CF is found
-    while _random_generator_stop_conditions(cf_try_prob, iterations, ft_time, it_max, ft_time_limit):
+    while _random_generator_stop_conditions(iterations=iterations, cf_unique=cf_unique, ft_time=ft_time, it_max=it_max,
+                                            ft_time_limit=ft_time_limit, count_cf=count_cf):
         # Each iteration will run from 1 to total number of features
         for n_changes in range(1, len(ohe_list)+len(indexes_num)+arr_changes_cat_bin.shape[0]):
 
@@ -392,33 +396,43 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
             # Create array with CF candidates
             cf_candidates = cf_try + random_changes
 
+            if len(cf_unique) > 0:
+                cf_candidates_unique = set(map(tuple, cf_candidates)).difference(set(map(tuple, cf_unique)))
+                cf_candidates = np.array(list(cf_candidates_unique))
+
+            # Continue if there's no random change
+            if len(cf_candidates) == 0:
+                continue
+
             # Calculate probabilities
             prob_cf_candidates = mp1c(cf_candidates)
-
-            # Identify which index had the best performance towards objective, it will take the first best
             best_arg = np.argmax(prob_cf_candidates)
 
-            # TODO: By sequentially modifying the outcome with the best argument, we introduce a bias for the
-            #  CF search, then, a non-biased methodology would simply not change by the best, but just go to
-            #  the next step with more modifications.
-            # Update CF try
-            cf_try = cf_try + random_changes[best_arg]
+            # Get CF arrays sorted by probability
+            mask_cf = prob_cf_candidates >= 0.5
+            cf_arrays = cf_candidates[mask_cf, :]
+            cf_prob = prob_cf_candidates[mask_cf]
+            cf_arrays = cf_arrays[cf_prob.argsort()[::-1]]
 
-            # Calculate how much the score got better
-            score_increase = [-cf_try_prob]
+            # Add unique CFs
+            cf_unique.extend(cf_arrays)
 
-            # Update the score
-            cf_try_prob = mp1c(np.array([cf_try]))[0]
+            if finder_strategy == 'sequential':
+                # The random sequential strategy updates the CF try with the best candidate
+                # Update CF try
+                cf_try = cf_candidates[best_arg]
+                # Update the score
+                cf_try_prob = mp1c(np.array([cf_try]))[0]
+            if finder_strategy is None:
+                if len(cf_unique) > 0:
+                    cf_try_prob = mp1c(np.array([cf_unique[0]]))[0]
 
             # Basic verbose report
             if verbose:
                 logging.log(10, f'Best CF try probability = {cf_try_prob}')
 
-            # Calculate how much the score got better
-            score_increase.append(cf_try_prob)
-
-            # If the score changed, break the loop
-            if cf_try_prob >= 0.5:
+            # If enough CFs break the loop
+            if len(cf_unique) >= count_cf:
                 break
 
         # After a full iteration over all features, increase momentum
@@ -427,13 +441,14 @@ def _random_generator(cf_data_type, factual, mp1c, feat_types, it_max, ft_change
         # Count an iteration
         iterations += 1
 
-    return cf_try
+    return cf_unique
 
 
-def _greedy_generator_stop_conditions(cf_try_prob, iterations, ft_time, it_max, ft_time_limit,
-                                      score_increase, increase_threshold, activate_tabu):
+def _greedy_generator_stop_conditions(
+        iterations, cf_unique, ft_time, it_max, ft_time_limit, count_cf, score_increase,
+        increase_threshold, activate_tabu):
 
-    if cf_try_prob >= 0.5:
+    if len(cf_unique) >= count_cf:
         return False
 
     if iterations >= it_max:
@@ -495,11 +510,13 @@ def _generate_greedy_changes(factual, cf_try, tabu_list, changes_cat_bin, change
 
 
 def _greedy_generator(
-        cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list, ohe_indexes, increase_threshold,
-        tabu_list, size_tabu, avoid_back_original, ft_time, ft_time_limit, threshold_changes, verbose):
+        finder_strategy, cf_data_type, factual, mp1c, feat_types, it_max, ft_change_factor, ohe_list,
+        ohe_indexes, increase_threshold, tabu_list, size_tabu, avoid_back_original, ft_time,
+        ft_time_limit, threshold_changes, count_cf, cf_unique, verbose):
     """
         This algorithm makes sequential changes which will better increase the score to find a CF
 
+        :param finder_strategy: The strategy adopted by the CF generator
         :param cf_data_type: NOT USED FOR GREEDY STRATEGY
         :param factual: The factual point
         :param mp1c: The predictor function wrapped in a predictable way
@@ -552,8 +569,10 @@ def _greedy_generator(
     # Repeat until max iterations
     # The third condition (score threshold) should only be applied if the Tabu is not activated
     # since the activation of Tabu can lead to decrease in score, and it's normal
-    while _greedy_generator_stop_conditions(cf_try_prob, iterations, ft_time, it_max, ft_time_limit, score_increase,
-                                            increase_threshold, activate_tabu):
+    while _greedy_generator_stop_conditions(
+            iterations=iterations, cf_unique=cf_unique, ft_time=ft_time, it_max=it_max, ft_time_limit=ft_time_limit,
+            count_cf=count_cf, score_increase=score_increase, increase_threshold=increase_threshold,
+            activate_tabu=activate_tabu):
 
         # Create changes to be applied in the factual instance
         changes_cat_bin, changes_cat_ohe_list, changes_cat_ohe, changes_num_up, changes_num_down = \
@@ -565,19 +584,35 @@ def _greedy_generator(
 
         # If no changes, return cf
         if len(changes) == 0:
-            return cf_try
+            continue
 
         # Create array with CF candidates
         cf_candidates = cf_try + changes
 
+        if len(cf_unique) > 0:
+            cf_candidates_unique = set(map(tuple, cf_candidates)).difference(set(map(tuple, cf_unique)))
+            cf_candidates = np.array(list(cf_candidates_unique))
+
+        # Continue if there's no random change
+        if len(cf_candidates) == 0:
+            continue
+
         # Calculate probabilities
         prob_cf_candidates = mp1c(cf_candidates)
-
         # Identify which index had the best performance towards objective, it will take the first best
         best_arg = np.argmax(prob_cf_candidates)
 
+        # Get CF arrays sorted by probability
+        mask_cf = prob_cf_candidates >= 0.5
+        cf_arrays = cf_candidates[mask_cf, :]
+        cf_prob = prob_cf_candidates[mask_cf]
+        cf_arrays = cf_arrays[cf_prob.argsort()[::-1]]
+
+        # Add unique CFs
+        cf_unique.extend(cf_arrays)
+
         # Update CF try
-        cf_try = cf_try + changes[best_arg]
+        cf_try = cf_candidates[best_arg]
 
         # Calculate how much the score got better
         score_increase = [-cf_try_prob]
@@ -622,4 +657,4 @@ def _greedy_generator(
         # Update number of tries
         iterations += 1
 
-    return cf_try
+    return cf_unique
