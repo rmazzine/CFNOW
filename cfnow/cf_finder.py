@@ -180,7 +180,7 @@ def find_tabular(
         model_predict_proba,
         count_cf: int = 1,
         feat_types: dict = None,
-        cf_strategy: Literal['greedy', 'random', 'random-sequential'] = 'greedy',
+        cf_strategy: Literal['greedy', 'random', 'random-sequential'] = 'random',
         increase_threshold: int = 0,
         it_max: int = 5000,
 
@@ -207,7 +207,7 @@ def find_tabular(
     categorical Default: (all num)
     :type feat_types: dict
     :param cf_strategy: (optional) Strategy to find CF, can be "greedy", "random" or
-    "random-sequential". Default='greedy'
+    "random-sequential". Default='random'
     :type cf_strategy: str
     :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
     if the improvement is below that, search will stop. -1 deactivates this check. Default=1e-05
@@ -377,7 +377,7 @@ def find_image(
         params_segmentation: dict = None,
         replace_mode: str = 'blur',
         img_cf_strategy: str = 'nonspecific',
-        cf_strategy: str = 'greedy',
+        cf_strategy: str = 'random',
         increase_threshold: (int, float) = None,
         it_max: int = 5000,
         limit_seconds: int = 120,
@@ -408,7 +408,7 @@ def find_image(
      to any CF class other than the factual or 'second_best' which tries to flip the classification
      to the second-highest class for the current factual. Default='nonspecific'
     :type img_cf_strategy: str
-    :param cf_strategy: (optional) Strategy to find CF, can be "greedy" or "random". Default='greedy'
+    :param cf_strategy: (optional) Strategy to find CF, can be "greedy", "random" or "random-sequential". Default='random'
     :type cf_strategy: str
     :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
     if the improvement is below that, search will stop. -1 deactivates this check. Default=-1 (greedy) or 1e-05 (random)
@@ -611,7 +611,7 @@ def find_text(
         textual_classifier,
         count_cf: int = 1,
         word_replace_strategy: str = 'remove',
-        cf_strategy: str = 'greedy',
+        cf_strategy: str = 'random',
         increase_threshold: (int, float) = -1,
         it_max: int = 5000,
         limit_seconds: int = 120,
@@ -633,7 +633,7 @@ def find_text(
     :param word_replace_strategy: (optional) Strategy to make text modifications. Can be 'remove', which simply
     removes the word or 'antonyms' which replace words by their respective antonyms. Default='remove'
     :type word_replace_strategy: str
-    :param cf_strategy: (optional) Strategy to find CF, can be "greedy" (default) or "random"
+    :param cf_strategy: (optional) Strategy to find CF, can be "greedy" or "random" (default) or "random-sequential".
     :type cf_strategy: str
     :param increase_threshold: (optional) Threshold for improvement in CF score in the CF search,
     if the improvement is below that, search will stop. -1 deactivates this check. Default=-1
