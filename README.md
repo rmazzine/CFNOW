@@ -1,14 +1,28 @@
-# CFNOW
+<p align="center">
+![image](/imgs/cfnow_logo.gif)
+</p>
 
-![image](/imgs/wololo_gif.gif)
+## CFNOW - CounterFactual Nearest Optimal Wololo
 
-CounterFactual Nearest Optimal Wololo
+
+### Description
+
+> TL;DR: You just need a `dataset point` and a `model prediction function`. CFNOW will find the closest point with a different class.
 
 The simplest way to generate counterfactuals for any tabular dataset and model.
 
 This package finds an optimal point (closer to the  input dataset point), which the classification is different from the original classification (i.e. "flips" the classification of the original input by minimally changin it).
 
-Minimal example:
+# Table of Contents
+
+- [Minimal example](#minimal-example)
+- [Counterfactual Charts](#showing-the-counterfactuals-graphically)
+- [I have: binary categorical features!](#i-have-binary-categorical-features)
+- [I have: one-hot encoded features!](#i-have-one-hot-encoded-features)
+- [I have: binary and OHE features!](#i-have-a-mix-of-binary-categorical-and-one-hot-encoded-features)
+- [How to cite](#how-to-cite)
+
+### Minimal example:
 ```python
 from cfnow.cf_finder import find_tabular
 import sklearn.datasets
@@ -36,7 +50,7 @@ cf_obj = find_tabular(
 print(f"CF: {cf_obj.cfs[0]}\nCF class: {model.predict([cf_obj.cfs[0]])}")
 ```
 
-## Showing the Counterfactuals graphically
+### Showing the Counterfactuals graphically
 This package is integrated with [CounterPlots](https://github.com/ADMAntwerp/CounterPlots), that allows you to graphically represent your counterfactual explanations!
 
 You can simply generate Greedy, CounterShapley, and Constellation charts for a given CF with:
@@ -60,7 +74,7 @@ cf_obj.generate_counterplots(0).constellation('constellation.png')
 ```
 ![image](/imgs/const_ex.png)
 
-## Improving your results
+### Improving your results
 The minimal example above considers all features as numerical continuous, however, some datasets can have categorical (binary or one-hot encoded) features. CFNOW can handle these data types in a simple way as demonstrated below:
 
 ### I have binary categorical features!
