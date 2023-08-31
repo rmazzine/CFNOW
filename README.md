@@ -1,6 +1,7 @@
-<p align="center">
-![image](/imgs/cfnow_logo.gif)
-</p>
+<div style="text-align:center">
+    <img src="/imgs/cfnow_hq_logo.gif" alt="image" width="100%"/>
+</div>
+
 
 ## CFNOW - CounterFactual Nearest Optimal Wololo
 ![unittests](https://github.com/rmazzine/CFNOW/actions/workflows/unittests.yaml/badge.svg)
