@@ -3,10 +3,27 @@ from unittest.mock import patch, MagicMock, call
 
 import pandas as pd
 import numpy as np
+import nltk
 
 from cfnow._data_standardizer import _get_ohe_params, _ohe_detector, _get_ohe_list, _seg_to_img, _untokenize, \
     _get_antonyms, _text_to_token_vector, _text_to_change_vector, _change_vector_to_text, _convert_change_vectors_func
 
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
+try:
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    nltk.download('wordnet')
+try:
+    nltk.data.find('corpora/omw-1.4')
+except LookupError:
+    nltk.download('omw-1.4')
+try:
+    nltk.data.find('taggers/averaged_perceptron_tagger')
+except LookupError:
+    nltk.download('averaged_perceptron_tagger')
 
 class TestScriptBase(unittest.TestCase):
 
