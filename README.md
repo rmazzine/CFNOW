@@ -13,7 +13,7 @@ The simplest way to generate counterfactuals for any tabular dataset and model.
 
 This package finds an optimal point (closer to the  input dataset point), which the classification is different from the original classification (i.e. "flips" the classification of the original input by minimally changin it).
 
-# Table of Contents
+## Table of Contents
 
 - [Minimal example](#minimal-example)
 - [Counterfactual Charts](#showing-the-counterfactuals-graphically)
@@ -21,6 +21,10 @@ This package finds an optimal point (closer to the  input dataset point), which 
 - [I have: one-hot encoded features!](#i-have-one-hot-encoded-features)
 - [I have: binary and OHE features!](#i-have-a-mix-of-binary-categorical-and-one-hot-encoded-features)
 - [How to cite](#how-to-cite)
+
+## Requirements
+
+- Python >= 3.8
 
 ### Minimal example:
 ```python
