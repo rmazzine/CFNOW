@@ -11,6 +11,14 @@ from collections import defaultdict
 import pandas as pd
 import numpy as np
 import nltk
+from nltk import pos_tag
+
+try:
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    nltk.download('wordnet')
+
+from nltk.corpus import wordnet
 
 with open(f'{os.path.abspath(os.path.dirname(__file__))}/assets/verb_tenses.pkl', 'rb') as handle:
     verb_tenses_dict = pickle.load(handle)
@@ -82,7 +90,6 @@ def _untokenize(words):
 
 
 def _get_antonyms(word, pos):
-    from nltk.corpus import wordnet
     antonyms = []
     # If it's a negative word return positive
     negative_to_positive = {
@@ -185,7 +192,6 @@ def _text_to_token_vector(text):
 
 
 def _text_to_change_vector(text):
-    from nltk import pos_tag
     # Verify and download NLTK packages
     try:
         nltk.data.find('tokenizers/punkt')
