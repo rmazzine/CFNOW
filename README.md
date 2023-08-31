@@ -3,6 +3,8 @@
 </p>
 
 ## CFNOW - CounterFactual Nearest Optimal Wololo
+![unittests](https://github.com/rmazzine/CFNOW/actions/workflows/unittests.yaml/badge.svg)
+[![codecov](https://codecov.io/gh/rmazzine/CFNOW/graph/badge.svg?token=4NHY0V9CN9)](https://codecov.io/gh/rmazzine/CFNOW)
 
 
 ### Description
