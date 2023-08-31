@@ -11,6 +11,9 @@ from collections import defaultdict
 import pandas as pd
 import numpy as np
 import nltk
+
+nltk.download()
+
 from nltk import pos_tag
 from nltk.corpus import wordnet
 
