@@ -456,7 +456,7 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_fine_tuning.call_args[1]['verbose'], verbose)
 
         # Check call for _CFTabular
-        self.assertEqual(len(mock_CFTabular.call_args[1]), 7)
+        self.assertEqual(len(mock_CFTabular.call_args[1]), 8)
         self.assertListEqual(mock_CFTabular.call_args[1]['factual'].tolist(), factual.tolist())
         self.assertListEqual(mock_CFTabular.call_args[1]['factual_vector'].tolist(), factual.tolist())
         self.assertEqual(mock_CFTabular.call_args[1]['cf_vectors'], mock_fine_tuning().__getitem__())
