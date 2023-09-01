@@ -1,5 +1,7 @@
-from cfnow import cf_finder
+from cfnow.cf_finder import find_tabular, find_image, find_text
 
 __all__ = [
-    'cf_finder'
+    'find_tabular',
+    'find_image',
+    'find_text',
 ]

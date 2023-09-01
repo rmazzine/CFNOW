@@ -31,7 +31,7 @@ This package finds an optimal point (closer to the  input dataset point), which 
 
 ### Minimal example:
 ```python
-from cfnow.cf_finder import find_tabular
+from cfnow import find_tabular
 import sklearn.datasets
 import sklearn.ensemble
 import pandas as pd
@@ -110,7 +110,7 @@ print(f"Factual: {x}\nFactual class: {model.predict([x])}")
 
 #### 2 - Find the CF
 ```python
-from cfnow.cf_finder import find_tabular
+from cfnow import find_tabular
 # Then, we use CFNOW to generate the minimum modification to change the classification
 cf_obj = find_tabular(
     factual=pd.Series(x),
@@ -165,7 +165,7 @@ print(f"Factual: {x.tolist()}\nFactual class: {model.predict([x])}")
 
 #### 2 - Find the CF
 ```python
-from cfnow.cf_finder import find_tabular
+from cfnow import find_tabular
 # Then, we use CFNOW to generate the minimum modification to change the classification
 cf_obj = find_tabular(
     factual=x,
@@ -218,7 +218,7 @@ print(f"Factual: {x.tolist()}\nFactual class: {model.predict([x])}")
 
 #### 2 - Find the CF
 ```python
-from cfnow.cf_finder import find_tabular
+from cfnow import find_tabular
 # Then, we use CFNOW to generate the minimum modification to change the classification
 cf_obj = find_tabular(
     factual=x,
