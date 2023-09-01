@@ -16,6 +16,12 @@ The simplest way to generate counterfactuals for any tabular dataset and model.
 
 This package finds an optimal point (closer to the  input dataset point), which the classification is different from the original classification (i.e. "flips" the classification of the original input by minimally changin it).
 
+## How to install
+    
+```bash
+    pip install cfnow
+```
+
 ## Table of Contents
 
 - [Minimal example](#minimal-example)
@@ -45,7 +51,7 @@ model.fit(X, y)
 x = X[0]
 
 # Here we can see the original class
-print(f"Factual: {x}\nFactual class: {model.predict([x])}")
+print(f"Factual: {x}\nFactual class: {model.predict_proba([x])}")
 
 # Then, we use CFNOW to generate the minimum modification to change the classification
 cf_obj = find_tabular(
@@ -54,7 +60,7 @@ cf_obj = find_tabular(
     limit_seconds=10)
 
 # Here we can see the new class
-print(f"CF: {cf_obj.cfs[0]}\nCF class: {model.predict([cf_obj.cfs[0]])}")
+print(f"CF: {cf_obj.cfs[0]}\nCF class: {model.predict_proba([cf_obj.cfs[0]])}")
 ```
 
 ### Showing the Counterfactuals graphically
@@ -105,7 +111,7 @@ model = sklearn.ensemble.RandomForestClassifier().fit(X, y)
 
 # Display the original class for a random test sample
 x = X[0]
-print(f"Factual: {x}\nFactual class: {model.predict([x])}")
+print(f"Factual: {x}\nFactual class: {model.predict_proba([x])}")
 ```
 
 #### 2 - Find the CF
@@ -119,7 +125,7 @@ cf_obj = find_tabular(
     limit_seconds=10)
 
 # Here we can see the new class
-print(f"CF: {cf_obj.cfs[0]}\nCF class: {model.predict([cf_obj.cfs[0]])}")
+print(f"CF: {cf_obj.cfs[0]}\nCF class: {model.predict_proba([cf_obj.cfs[0]])}")
 
 
 
@@ -160,7 +166,7 @@ model = sklearn.ensemble.RandomForestClassifier().fit(df, y)
 
 # Display the original class for a random test sample
 x = df.iloc[0]
-print(f"Factual: {x.tolist()}\nFactual class: {model.predict([x])}")
+print(f"Factual: {x.tolist()}\nFactual class: {model.predict_proba([x])}")
 ```
 
 #### 2 - Find the CF
@@ -175,7 +181,7 @@ cf_obj = find_tabular(
     limit_seconds=10)
 
 # Here we can see the new class
-print(f"CF: {cf_obj.cfs[0]}\nCF class: {model.predict([cf_obj.cfs[0]])}")
+print(f"CF: {cf_obj.cfs[0]}\nCF class: {model.predict_proba([cf_obj.cfs[0]])}")
 ```
 
 ### I have one-hot and binary categorical features!
@@ -213,7 +219,7 @@ model = sklearn.ensemble.RandomForestClassifier().fit(df, y)
 
 # Display the original class for a random test sample
 x = df.iloc[0]
-print(f"Factual: {x.tolist()}\nFactual class: {model.predict([x])}")
+print(f"Factual: {x.tolist()}\nFactual class: {model.predict_proba([x])}")
 ```
 
 #### 2 - Find the CF
@@ -228,7 +234,7 @@ cf_obj = find_tabular(
     limit_seconds=10)
 
 # Here we can see the new class
-print(f"CF: {cf_obj.cfs[0]}\nCF class: {model.predict([cf_obj.cfs[0]])}")
+print(f"CF: {cf_obj.cfs[0]}\nCF class: {model.predict_proba([cf_obj.cfs[0]])}")
 ```
 
 ## How to cite
