@@ -7,14 +7,13 @@ HISTORY = open('HISTORY.md').read()
 REQUIREMENTS = [r.replace('\n', '') for r in open('requirements.txt').readlines()]
 
 setup_args = {
-    'name': 'CFNOW',
-    'version': '0.0.2',
+    'name': 'cfnow',
+    'version': '0.0.3',
     'description': 'Generate counterfactuals with ease. This package takes a model and point (with a certain class) '
                    'and minimally changes it to flip the classification result.',
     'long_description_content_type': 'text/markdown',
     'long_description': f'{README}\n{HISTORY}',
     'license': 'MIT',
-    'package_dir': {'cfnow':''},
     'packages': find_packages(exclude=('tests\*', 'imgs\*')),
     'author': 'Raphael Mazzine Barbosa de Oliveira',
     'author_email': 'mazzine.r@gmail.com',
