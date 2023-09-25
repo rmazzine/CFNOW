@@ -29,6 +29,8 @@ This package finds an optimal point (closer to the  input dataset point), which 
 - [I have: binary categorical features!](#i-have-binary-categorical-features)
 - [I have: one-hot encoded features!](#i-have-one-hot-encoded-features)
 - [I have: binary and OHE features!](#i-have-a-mix-of-binary-categorical-and-one-hot-encoded-features)
+- [Image Counterfactuals](#image-counterfactuals)
+- [Text Counterfactuals](#text-counterfactuals)
 - [How to cite](#how-to-cite)
 
 ## Requirements
@@ -236,6 +238,172 @@ cf_obj = find_tabular(
 # Here we can see the new class
 print(f"CF: {cf_obj.cfs[0]}\nCF class: {model.predict_proba([cf_obj.cfs[0]])}")
 ```
+
+## Image Counterfactuals
+
+To generate image counterfactuals, we will use some additional packages to help us.
+
+Below we show the process to generate a counterfactual for the image below:
+
+<div style="text-align:center">
+    <img src="/imgs/example_factual_img_daisy.png" alt="image" width="50%"/>
+</div>
+
+#### factual class: daisy
+
+<div style="text-align:center">
+    <img src="/imgs/example_cf_img_daisy.png" alt="image" width="50%"/>
+</div>
+
+#### cf class: bee
+
+### 1 - Install the packages
+```bash
+pip install torch torchvision Pillow requests
+```
+
+We also recommend to run this experiment in Jupyter Notebook, as it will be easier to visualize the results.
+
+Most of the code for this example is to load the pre-trained model and the image. The CFNOW part is very simple.
+
+### 2 - Loading the pre-trained model and building image classifier
+```python
+import requests
+import numpy as np
+from PIL import Image
+from torchvision import models, transforms
+import torch
+
+# Load a pre-trained ResNet model
+model = models.resnet50(pretrained=True)
+model.eval()
+
+# Define the image transformation
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+# Fetch an image from the web
+image_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Sunflower_from_Silesia2.jpg/320px-Sunflower_from_Silesia2.jpg"
+response = requests.get(image_url, stream=True)
+image = np.array(Image.open(response.raw))
+
+def predict(images):
+    if len(np.shape(images)) == 4:
+        # Convert the list of numpy arrays to a batch of tensors
+        input_images = torch.stack([transform(Image.fromarray(image.astype('uint8'))) for image in images])
+    elif len(np.shape(images)) == 3:
+        input_images = transform(Image.fromarray(images.astype('uint8')))
+    else:
+        raise ValueError("The input must be a list of images or a single image.")
+    
+    # Check if a GPU is available and if not, use a CPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    input_images = input_images.to(device)
+    model.to(device)
+    
+    # Perform inference
+    with torch.no_grad():
+        outputs = model(input_images)
+    
+    # Return an array of prediction scores for each image
+    return torch.asarray(outputs).cpu().numpy()
+
+LABELS_URL = "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json"
+def predict_label(outputs):
+    # Load the labels used by the pre-trained model
+    labels = requests.get(LABELS_URL).json()
+    
+    # Get the predicted labels
+    predicted_idxs = [np.argmax(od) for od in outputs]
+    predicted_labels = [labels[idx.item()] for idx in predicted_idxs]
+    
+    return predicted_labels
+
+# Check the prediction for the image
+predicted_label = predict([np.array(image)])
+print("Predicted labels:", predict_label(predicted_label))
+```
+
+To find the CF you just need to:
+
+### 3 - Find the CF
+```python
+from cfnow import find_image
+
+cf_img = find_image(img=image, model_predict=predict)
+
+cf_img_hl = cf_img.cfs[0]
+print("Predicted labels:", predict_label(predict([cf_img_hl])))
+
+# Show the CF image
+Image.fromarray(cf_img_hl.astype('uint8'))
+```
+
+## Text Counterfactuals
+
+You can also generate counterfactuals for embedding models.
+
+For this example, you will need to install the following packages:
+
+
+### 1 - Install the packages
+```bash
+pip install transformers
+```
+
+### 2 - Load the pre-trained model
+```python
+from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
+from transformers import pipeline
+
+import numpy as np
+
+# Load pre-trained model and tokenizer for sentiment analysis
+model_name = "distilbert-base-uncased-finetuned-sst-2-english"
+tokenizer = DistilBertTokenizer.from_pretrained(model_name)
+model = DistilBertForSequenceClassification.from_pretrained(model_name)
+
+# Define the sentiment analysis pipeline
+sentiment_analysis = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
+
+# Define a simple dataset
+text_factual = "I liked this movie because it was funny but my friends did not like it because it was too long and boring."
+
+result = sentiment_analysis(text_factual)
+print(f"{text_factual}: {result[0]['label']} (confidence: {result[0]['score']:.2f})")
+        
+def pred_score_text(list_text):
+    if type(list_text) == str:
+        sa_pred = sentiment_analysis(list_text)[0]
+        sa_score = sa_pred['score']
+        sa_label = sa_pred['label']
+        return sa_score if sa_label == "POSITIVE" else 1.0 - sa_score
+    return np.array([sa["score"] if sa["label"] == "POSITIVE" else 1.0 - sa["score"] for sa in sentiment_analysis(list_text)])
+```
+
+In the code above, we can see the factual text has a NEGATIVE classification with a high confidence.
+```text
+I liked this movie because it was funny but my friends did not like it because it was too long and boring.: NEGATIVE (confidence: 0.98)
+```
+
+### 3 - Find the CF
+```python
+from cfnow import find_text
+cf_text = find_text(text_input=text_factual, textual_classifier=pred_score_text)
+result_cf = sentiment_analysis(cf_text.cfs[0])
+print(f"CF: {cf_text.cfs[0]}: {result_cf[0]['label']} (confidence: {result_cf[0]['score']:.2f})")
+```
+
+The CF text has a POSITIVE classification with a high confidence.
+```text
+CF: I liked this movie because it was funny  my friends did not like it because it was too long and boring.: POSITIVE (confidence: 0.93)
+```
+
+In the example above, we can see how minimal the difference is to a change in the classification. Where just one word (`but`) was removed from the text.
 
 ## How to cite
 If you use CFNOW in your research, please cite the following paper:
