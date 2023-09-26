@@ -45,6 +45,7 @@ class TestCFTabular(unittest.TestCase):
     def test_create_object(self):
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
+        col_names = factual.index.tolist()
         factual_vector = factual.to_numpy()
         cf_vectors = [factual.to_numpy()]
         cf_not_optimized_vectors = [factual.to_numpy()]
@@ -53,7 +54,7 @@ class TestCFTabular(unittest.TestCase):
         time_cf_not_optimized = 0
 
         cf_tabular = _CFTabular(
-            factual=factual, factual_vector=factual_vector, cf_vectors=cf_vectors,
+            col_names=col_names, factual=factual, factual_vector=factual_vector, cf_vectors=cf_vectors,
             cf_not_optimized_vectors=cf_not_optimized_vectors, obj_scores=obj_scores, time_cf=time_cf,
             time_cf_not_optimized=time_cf_not_optimized)
 
@@ -64,6 +65,7 @@ class TestCFTabular(unittest.TestCase):
     def test_create_object_no_cf(self):
         factual = pd.Series({'num1': -50, 'num2': 10, 'ohe1_0': 1, 'ohe1_1': 0, 'ohe1_2': 0, 'bin1': 1, 'bin2': 0,
                              'ohe2_0': 0, 'ohe2_1': 1, 'ohe2_2': 0})
+        col_names = factual.index.tolist()
         factual_vector = factual.to_numpy()
         cf_vectors = []
         cf_not_optimized_vectors = []
@@ -72,7 +74,7 @@ class TestCFTabular(unittest.TestCase):
         time_cf_not_optimized = 0
 
         cf_tabular = _CFTabular(
-            factual=factual, factual_vector=factual_vector, cf_vectors=cf_vectors,
+            col_names=col_names, factual=factual, factual_vector=factual_vector, cf_vectors=cf_vectors,
             cf_not_optimized_vectors=cf_not_optimized_vectors, obj_scores=obj_scores, time_cf=time_cf,
             time_cf_not_optimized=time_cf_not_optimized)
 
@@ -456,7 +458,7 @@ class TestScriptBase(unittest.TestCase):
         self.assertEqual(mock_fine_tuning.call_args[1]['verbose'], verbose)
 
         # Check call for _CFTabular
-        self.assertEqual(len(mock_CFTabular.call_args[1]), 8)
+        self.assertEqual(len(mock_CFTabular.call_args[1]), 9)
         self.assertListEqual(mock_CFTabular.call_args[1]['factual'].tolist(), factual.tolist())
         self.assertListEqual(mock_CFTabular.call_args[1]['factual_vector'].tolist(), factual.tolist())
         self.assertEqual(mock_CFTabular.call_args[1]['cf_vectors'], mock_fine_tuning().__getitem__())
@@ -980,7 +982,7 @@ class TestScriptBase(unittest.TestCase):
         mock_logging.log.assert_called_once()
 
         # Check response object
-        self.assertEqual(len(mock_CFTabular.call_args[1]), 7)
+        self.assertEqual(len(mock_CFTabular.call_args[1]), 8)
         self.assertListEqual(mock_CFTabular.call_args[1]['factual'].tolist(), factual.tolist())
         self.assertListEqual(mock_CFTabular.call_args[1]['factual_vector'].tolist(), factual.tolist())
         self.assertEqual(mock_CFTabular.call_args[1]['cf_vectors'], [])

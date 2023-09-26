@@ -53,11 +53,12 @@ class _CFTabular(_CFBaseResponse):
     """
     Class to return Tabular CF explanations
     """
-    def __init__(self, **kwargs):
+    def __init__(self, col_names, **kwargs):
 
         super(_CFTabular, self).__init__(**kwargs)
 
         self.cfs = self.cf_vectors
+        self.col_names = col_names
         self.cfs_not_optimized = self.cf_not_optimized_vectors
 
     def generate_counterplots(self, idx_cf):
@@ -69,6 +70,7 @@ class _CFTabular(_CFBaseResponse):
         return cpl.CreatePlot(
             factual=np.array(self.factual.tolist()),
             cf=np.array(self.cfs[idx_cf].tolist()),
+            feature_names=self.col_names,
             model_pred=lambda x: self.model_pred(x)[:, 0])
 
 
@@ -261,6 +263,12 @@ def find_tabular(
     # Defines the type of data
     cf_data_type = 'tabular'
 
+    # Col names
+    if feat_types is None:
+        col_names = [f"num_{i}" for i in range(len(factual))]
+    else:
+        col_names = list(feat_types.keys())
+
     # Defines the CF finding strategy
     cf_finder = None
     finder_strategy = None
@@ -337,13 +345,14 @@ def find_tabular(
     if len(cf_unique) == 0:
         logging.log(30, 'No CF found.')
         return _CFTabular(
+            col_names=col_names,
             factual=factual,
             factual_vector=factual,
             cf_vectors=[],
             cf_not_optimized_vectors=[],
             obj_scores=[],
             time_cf=time_cf_not_optimized.total_seconds(),
-            time_cf_not_optimized=time_cf_not_optimized.total_seconds())
+            time_cf_not_optimized=time_cf_not_optimized.total_seconds(),)
 
     # Fine tune the counterfactual
     cf_unique_opt = _fine_tuning(
@@ -372,6 +381,7 @@ def find_tabular(
     time_cf = datetime.now() - time_start
 
     return _CFTabular(
+            col_names=col_names,
             factual=factual,
             factual_vector=factual,
             cf_vectors=cf_unique_opt[0],
